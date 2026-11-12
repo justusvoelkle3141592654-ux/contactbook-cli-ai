@@ -76,6 +76,9 @@ class ThemeManager(QObject):
         color = self._tokens.text_secondary if secondary else self._tokens.text
         return tinted_icon(name, color)
 
+    def accent_icon(self, name: str) -> QIcon:
+        return tinted_icon(name, self._tokens.accent)
+
     def on_change(self, callback: Callable[[], None]) -> None:
         self.changed.connect(callback)
 

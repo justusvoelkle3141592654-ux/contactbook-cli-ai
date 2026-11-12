@@ -129,10 +129,11 @@ def _run_smoke_test(window: OverviewWindow) -> None:
     try:
         window.search.setText("x")
         window.search.clear()
-        window.open_settings()
-        dialog = window._settings_dialog
-        assert dialog is not None and dialog.isVisible()
-        dialog.accept()
+        window.show_category("files")
+        assert window.visible_tool_ids(), "no tools listed"
+        window.show_settings()
+        assert window.pages.currentWidget() is window.settings_page
+        window.show_category("all")
         log.info("SMOKE TEST OK")
         QApplication.exit(0)
     except Exception:  # noqa: BLE001

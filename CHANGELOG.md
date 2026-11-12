@@ -11,8 +11,9 @@ Foundation release. No tools are available yet; they are listed in the overview 
 
 ### Added
 
-- Overview window with tool search, grouped tool list and a status line for CPU, memory and battery.
-- Settings: language (German, English, same as Windows), theme (light, dark, same as Windows), data location, open data and log folders, export data as ZIP, delete all data.
+- Main window with sidebar navigation by category, tool cards, search (Ctrl+K) and a status line with meters for CPU, memory and battery.
+- Settings page built from Windows 11 style settings cards.
+- Settings options: language (German, English, same as Windows), theme (light, dark, same as Windows), data location, open data and log folders, export data as ZIP, delete all data.
 - Local storage: versioned JSON settings, SQLite database with per-tool schema migrations.
 - Rotating log file and an error dialog for unexpected errors; the app keeps running.
 - Single instance per data folder; a second start brings the running window to the front.

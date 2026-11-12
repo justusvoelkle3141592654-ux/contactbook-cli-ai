@@ -54,6 +54,8 @@ def main() -> int:
         return 1
     images = [(size, render_png(renderer, size)) for size in SIZES]
     TARGET.write_bytes(build_ico(images))
+    # 48 px bitmap shown at 24 logical pixels (2x) in the sidebar.
+    (TARGET.parent / "app-24.png").write_bytes(render_png(renderer, 48))
     print(f"Wrote {TARGET.relative_to(ROOT)} with sizes {', '.join(map(str, SIZES))}")
     return 0
 

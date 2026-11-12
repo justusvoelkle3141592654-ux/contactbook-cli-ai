@@ -11,15 +11,16 @@ appear in the overview as "Not available yet".
 
 Windows may show "Windows protected your PC" because the program is not code-signed yet. Choose "More info", then "Run anyway". See `SECURITY.md` for how to verify the download.
 
-## Overview
+## Main window
 
-- Type in the search field to filter tools by name or description. Ctrl+F jumps to the search field, Esc clears it, Down moves into the list.
-- Enter or a click opens a tool.
+- The sidebar shows all tools or one category at a time; the number next to each entry is the number of tools in it.
+- Type in the search field to find tools by name or description. Ctrl+K (or Ctrl+F) jumps to the search field, Esc clears it, Down moves to the first tool, the arrow keys move between tools.
+- Enter or a click opens a tool. Tools marked "Planned" are not available yet.
 - The line at the bottom shows CPU load, memory use and, on laptops, the battery level. It updates every two seconds.
 
 ## Settings
 
-Open with the Settings button or Ctrl+,.
+Open with Settings at the bottom of the sidebar or Ctrl+,.
 
 - **Language:** German, English, or the same as Windows (English if Windows is English, otherwise German). Changes apply immediately.
 - **Theme:** light, dark, or the same as Windows. Changes apply immediately.

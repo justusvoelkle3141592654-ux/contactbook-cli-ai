@@ -1,67 +1,42 @@
-"""Overview window: search, the list of tools, and a slim status line."""
+"""Main window: sidebar navigation, tools page, settings page and status line."""
 
 from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import (
-    QByteArray,
-    QEvent,
-    QModelIndex,
-    QObject,
-    QPersistentModelIndex,
-    QRect,
-    QSize,
-    Qt,
-    QTimer,
-)
-from PySide6.QtGui import (
-    QCloseEvent,
-    QColor,
-    QFont,
-    QFontMetrics,
-    QKeyEvent,
-    QKeySequence,
-    QPainter,
-    QStandardItem,
-    QStandardItemModel,
-)
+from PySide6.QtCore import QByteArray, QEvent, QObject, Qt, QTimer
+from PySide6.QtGui import QCloseEvent, QKeyEvent, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QButtonGroup,
+    QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
-    QListView,
     QMainWindow,
-    QPushButton,
+    QScrollArea,
     QStackedWidget,
-    QStyle,
-    QStyledItemDelegate,
-    QStyleOptionViewItem,
     QVBoxLayout,
     QWidget,
 )
 
+from desktop_organizer import __version__
 from desktop_organizer.app import dialogs
 from desktop_organizer.app.context import AppContext
-from desktop_organizer.app.settings_dialog import SettingsDialog
+from desktop_organizer.app.settings_page import SettingsPage
 from desktop_organizer.app.tool_window import ToolWindow
+from desktop_organizer.app.widgets import Meter, NavButton, SearchField, ToolCard
 from desktop_organizer.core import system_info
 from desktop_organizer.core.formatting import format_bytes, format_percent
 from desktop_organizer.core.i18n import tr
-from desktop_organizer.tools.registry import CATEGORY_ORDER, ToolSpec
+from desktop_organizer.core.paths import resources_dir
+from desktop_organizer.tools.registry import CATEGORY_ORDER, Category, ToolSpec
 
 log = logging.getLogger(__name__)
 
-KIND_ROLE = Qt.ItemDataRole.UserRole + 1
-SPEC_ROLE = Qt.ItemDataRole.UserRole + 2
-DESC_ROLE = Qt.ItemDataRole.UserRole + 3
-
-GROUP_ROW_HEIGHT = 36
-TOOL_ROW_HEIGHT = 56
 STATUS_INTERVAL_MS = 2000
-
-AnyIndex = QModelIndex | QPersistentModelIndex
+TWO_COLUMN_MIN_WIDTH = 720
+ALL = "all"
 
 
 def matches(spec: ToolSpec, query: str) -> bool:
@@ -71,111 +46,210 @@ def matches(spec: ToolSpec, query: str) -> bool:
     return needle in tr(spec.title_key).casefold() or needle in tr(spec.description_key).casefold()
 
 
-class ToolDelegate(QStyledItemDelegate):
-    def __init__(self, context: AppContext, parent: QObject | None = None) -> None:
-        super().__init__(parent)
+def page_layout(widget: QWidget) -> QVBoxLayout:
+    layout = QVBoxLayout(widget)
+    layout.setContentsMargins(32, 28, 32, 24)
+    layout.setSpacing(4)
+    return layout
+
+
+class ToolsPage(QWidget):
+    """Title, search and the grid of tool cards for one category or all tools."""
+
+    def __init__(self, context: AppContext, tools: list[ToolSpec], open_tool: object) -> None:
+        super().__init__()
+        self.setObjectName("PageBody")
         self._context = context
+        self._tools = tools
+        self._open_tool = open_tool
+        self._category: str = ALL
+        self._cards: list[ToolCard] = []
+        self._columns = 0
 
-    def sizeHint(self, option: QStyleOptionViewItem, index: AnyIndex) -> QSize:  # noqa: N802
-        height = GROUP_ROW_HEIGHT if index.data(KIND_ROLE) == "group" else TOOL_ROW_HEIGHT
-        return QSize(option.rect.width(), height)  # type: ignore[attr-defined]
+        self.title = QLabel()
+        self.title.setProperty("textStyle", "display")
+        self.subtitle = QLabel()
+        self.subtitle.setProperty("textStyle", "secondary")
+        heading = QVBoxLayout()
+        heading.setSpacing(4)
+        heading.addWidget(self.title)
+        heading.addWidget(self.subtitle)
 
-    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: AnyIndex) -> None:
-        t = self._context.theme.tokens
-        painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = QRect(option.rect)  # type: ignore[attr-defined]
-        base = QFont(option.font)  # type: ignore[attr-defined]
+        self.search = SearchField(context.theme)
+        self.search.setFixedWidth(300)
+        self.search.textChanged.connect(self.rebuild)
+        self.search.installEventFilter(self)
 
-        if index.data(KIND_ROLE) == "group":
-            font = QFont(base)
-            font.setPixelSize(12)
-            font.setWeight(QFont.Weight.DemiBold)
-            painter.setFont(font)
-            painter.setPen(QColor(t.text_secondary))
-            text_rect = rect.adjusted(16, 0, -16, -4)
-            painter.drawText(
-                text_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom, index.data()
-            )
-            painter.restore()
-            return
+        header = QHBoxLayout()
+        header.setSpacing(16)
+        header.addLayout(heading, 1)
+        header.addWidget(self.search, 0, Qt.AlignmentFlag.AlignBottom)
 
-        spec: ToolSpec = index.data(SPEC_ROLE)
-        state = option.state  # type: ignore[attr-defined]
-        row = rect.adjusted(4, 2, -4, -2)
-        selected = bool(state & QStyle.StateFlag.State_Selected)
-        hovered = bool(state & QStyle.StateFlag.State_MouseOver)
-        focused = bool(state & QStyle.StateFlag.State_HasFocus)
+        self.grid_host = QWidget()
+        self.grid_host.setObjectName("PageBody")
+        self.grid = QGridLayout(self.grid_host)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setHorizontalSpacing(8)
+        self.grid.setVerticalSpacing(8)
 
-        if selected:
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(t.selection))
-            painter.drawRoundedRect(row, 4, 4)
-            painter.setBrush(QColor(t.accent))
-            marker = QRect(row.left(), row.center().y() - 8, 3, 16)
-            painter.drawRoundedRect(marker, 1.5, 1.5)
-        elif hovered:
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QColor(t.surface_alt))
-            painter.drawRoundedRect(row, 4, 4)
-        if focused and selected and option.widget is not None and option.widget.hasFocus():  # type: ignore[attr-defined]
-            pen = painter.pen()
-            pen.setColor(QColor(t.accent))
-            pen.setWidth(2)
-            painter.setPen(pen)
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(row.adjusted(1, 1, -1, -1), 4, 4)
+        self.empty = QLabel()
+        self.empty.setProperty("textStyle", "empty")
+        self.empty.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+        self.empty.setWordWrap(True)
 
-        icon = self._context.theme.icon(spec.icon, secondary=not spec.available)
-        icon_rect = QRect(row.left() + 16, row.center().y() - 10, 20, 20)
-        icon.paint(painter, icon_rect)
+        body = QWidget()
+        body.setObjectName("PageBody")
+        body_layout = QVBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.addWidget(self.grid_host)
+        body_layout.addWidget(self.empty)
+        body_layout.addStretch(1)
 
-        right_reserved = 0
-        if not spec.available:
-            status_font = QFont(base)
-            status_font.setPixelSize(12)
-            painter.setFont(status_font)
-            painter.setPen(QColor(t.text_secondary))
-            status = tr("overview.not_available")
-            width = QFontMetrics(status_font).horizontalAdvance(status)
-            right_reserved = width + 24
-            painter.drawText(
-                QRect(row.right() - width - 16, row.top(), width, row.height()),
-                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
-                status,
-            )
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setObjectName("PageScroll")
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setWidget(body)
+
+        layout = page_layout(self)
+        layout.addLayout(header)
+        layout.addSpacing(20)
+        layout.addWidget(self.scroll_area, 1)
+
+    # -- state ---------------------------------------------------------------------------
+
+    def set_category(self, category: str) -> None:
+        self._category = category
+        self.rebuild()
+
+    def visible_tool_ids(self) -> list[str]:
+        return [card.property("toolId") for card in self._cards]
+
+    def cards(self) -> list[ToolCard]:
+        return list(self._cards)
+
+    def _visible_specs(self) -> list[ToolSpec]:
+        query = self.search.text().strip()
+        specs = [s for s in self._tools if matches(s, query)]
+        if self._category != ALL and not query:
+            specs = [s for s in specs if s.category.value == self._category]
+        return specs
+
+    # -- texts ---------------------------------------------------------------------------
+
+    def retranslate(self) -> None:
+        self.search.setPlaceholderText(tr("overview.search.placeholder"))
+        self.search.setAccessibleName(tr("overview.search.placeholder"))
+        self.search.set_hint(tr("overview.search.hint"))
+        self.rebuild()
+
+    def _update_heading(self) -> None:
+        query = self.search.text().strip()
+        if query:
+            self.title.setText(tr("overview.results", query=query))
+            self.subtitle.setText(tr("overview.results.subtitle"))
+        elif self._category == ALL:
+            self.title.setText(tr("nav.all"))
+            self.subtitle.setText(tr("page.all.subtitle"))
         else:
-            chevron = self._context.theme.icon("chevron-right", secondary=True)
-            chevron.paint(painter, QRect(row.right() - 32, row.center().y() - 8, 16, 16))
-            right_reserved = 40
+            self.title.setText(tr(f"category.{self._category}"))
+            self.subtitle.setText(tr(f"page.{self._category}.subtitle"))
 
-        text_left = icon_rect.right() + 16
-        text_width = row.right() - right_reserved - text_left
-        title_font = QFont(base)
-        title_font.setPixelSize(14)
-        title_font.setWeight(QFont.Weight.DemiBold)
-        desc_font = QFont(base)
-        desc_font.setPixelSize(12)
-        title_metrics = QFontMetrics(title_font)
-        desc_metrics = QFontMetrics(desc_font)
-        block = title_metrics.height() + 2 + desc_metrics.height()
-        top = row.center().y() - block // 2
+    # -- grid ----------------------------------------------------------------------------
 
-        painter.setFont(title_font)
-        painter.setPen(QColor(t.text))
-        painter.drawText(
-            QRect(text_left, top, text_width, title_metrics.height()),
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            title_metrics.elidedText(index.data(), Qt.TextElideMode.ElideRight, text_width),
-        )
-        painter.setFont(desc_font)
-        painter.setPen(QColor(t.text_secondary))
-        painter.drawText(
-            QRect(text_left, top + title_metrics.height() + 2, text_width, desc_metrics.height()),
-            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-            desc_metrics.elidedText(index.data(DESC_ROLE), Qt.TextElideMode.ElideRight, text_width),
-        )
-        painter.restore()
+    def rebuild(self) -> None:
+        self._update_heading()
+        focused = next((c.property("toolId") for c in self._cards if c.hasFocus()), None)
+        for card in self._cards:
+            # Hide and detach at once; deleteLater alone leaves old cards painted
+            # until the event loop runs.
+            card.hide()
+            card.setParent(None)
+            card.deleteLater()
+        self._cards = []
+        for spec in self._visible_specs():
+            card = ToolCard(
+                self._context.theme,
+                spec.icon,
+                spec.available,
+                lambda: tr("overview.badge.planned"),
+            )
+            card.setProperty("toolId", spec.id)
+            card.setText(tr(spec.title_key))
+            description = tr(spec.description_key)
+            card.set_description(description)
+            card.setToolTip(
+                description
+                if spec.available
+                else f"{description}\n{tr('overview.not_available.tooltip')}"
+            )
+            card.setAccessibleName(tr(spec.title_key))
+            card.setAccessibleDescription(
+                description if spec.available else f"{description} {tr('overview.not_available')}."
+            )
+            card.clicked.connect(lambda _=False, s=spec: self._open_tool(s))  # type: ignore[operator]
+            card.arrow_pressed.connect(self._move_focus)
+            self._cards.append(card)
+            if spec.id == focused:
+                QTimer.singleShot(0, card.setFocus)
+        self.empty.setText(tr("overview.empty", query=self.search.text().strip()))
+        self.empty.setVisible(not self._cards)
+        self._columns = 0
+        self._layout_grid()
+
+    def _column_count(self) -> int:
+        return 2 if self.scroll_area.viewport().width() >= TWO_COLUMN_MIN_WIDTH else 1
+
+    def _layout_grid(self) -> None:
+        columns = self._column_count()
+        if columns == self._columns and all(self.grid.indexOf(c) >= 0 for c in self._cards):
+            return
+        self._columns = columns
+        while self.grid.count():
+            self.grid.takeAt(0)
+        for index, card in enumerate(self._cards):
+            self.grid.addWidget(card, index // columns, index % columns)
+        for column in range(2):
+            self.grid.setColumnStretch(column, 1 if column < columns else 0)
+
+    def resizeEvent(self, event: object) -> None:  # noqa: N802
+        super().resizeEvent(event)  # type: ignore[arg-type]
+        self._layout_grid()
+
+    def focus_first_card(self) -> None:
+        if self._cards:
+            self._cards[0].setFocus(Qt.FocusReason.TabFocusReason)
+
+    def _move_focus(self, direction: str) -> None:
+        current = next((i for i, c in enumerate(self._cards) if c.hasFocus()), None)
+        if current is None:
+            return
+        cols = max(self._columns, 1)
+        step = {"left": -1, "right": 1, "up": -cols, "down": cols}[direction]
+        target = current + step
+        if direction == "up" and target < 0:
+            self.search.setFocus()
+            return
+        if 0 <= target < len(self._cards):
+            card = self._cards[target]
+            card.setFocus(Qt.FocusReason.TabFocusReason)
+            self.scroll_area.ensureWidgetVisible(card, 0, 16)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if watched is self.search and isinstance(event, QKeyEvent):
+            if event.type() != QEvent.Type.KeyPress:
+                return False
+            if event.key() == Qt.Key.Key_Down:
+                self.focus_first_card()
+                return True
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and self._cards:
+                self._cards[0].click()
+                return True
+            if event.key() == Qt.Key.Key_Escape and self.search.text():
+                self.search.clear()
+                return True
+        return super().eventFilter(watched, event)
 
 
 class OverviewWindow(QMainWindow):
@@ -184,69 +258,102 @@ class OverviewWindow(QMainWindow):
         self._context = context
         self._tools = tools
         self._open_windows: dict[str, ToolWindow] = {}
-        self._settings_dialog: SettingsDialog | None = None
+        self.setMinimumSize(760, 520)
 
-        self.search = QLineEdit()
-        self.search.setClearButtonEnabled(True)
-        self._search_action = self.search.addAction(
-            context.theme.icon("search", secondary=True), QLineEdit.ActionPosition.LeadingPosition
-        )
-        self.search.textChanged.connect(self._rebuild)
-        self.search.installEventFilter(self)
+        # Sidebar ----------------------------------------------------------------------
+        self.logo = QLabel()
+        self.app_name = QLabel()
+        self.app_name.setProperty("textStyle", "appName")
+        brand = QHBoxLayout()
+        brand.setContentsMargins(12, 4, 12, 4)
+        brand.setSpacing(10)
+        brand.addWidget(self.logo)
+        brand.addWidget(self.app_name, 1)
 
-        self.settings_button = QPushButton()
-        self.settings_button.clicked.connect(self.open_settings)
+        self.nav_group = QButtonGroup(self)
+        self.nav_all = NavButton(context.theme, "layout-grid")
+        self.nav_categories: dict[str, NavButton] = {}
+        icons = {
+            Category.FILES: "folder-open",
+            Category.SAFETY: "shield-check",
+            Category.EVERYDAY: "calendar-check",
+            Category.SYSTEM: "gauge",
+        }
+        nav = QVBoxLayout()
+        nav.setSpacing(2)
+        nav.addWidget(self.nav_all)
+        self.nav_group.addButton(self.nav_all)
+        self.nav_all.clicked.connect(lambda: self._show_tools(ALL))
+        for category in CATEGORY_ORDER:
+            button = NavButton(context.theme, icons[category])
+            button.set_count(sum(1 for t in tools if t.category is category))
+            button.clicked.connect(lambda _=False, c=category.value: self._show_tools(c))
+            self.nav_group.addButton(button)
+            self.nav_categories[category.value] = button
+            nav.addWidget(button)
+        self.nav_all.set_count(len(tools))
 
-        header = QHBoxLayout()
-        header.setSpacing(8)
-        header.addWidget(self.search, 1)
-        header.addWidget(self.settings_button)
+        self.nav_settings = NavButton(context.theme, "settings")
+        self.nav_group.addButton(self.nav_settings)
+        self.nav_settings.clicked.connect(self.show_settings)
 
-        self.model = QStandardItemModel(self)
-        self.list = QListView()
-        self.list.setModel(self.model)
-        self.list.setItemDelegate(ToolDelegate(context, self.list))
-        self.list.setMouseTracking(True)
-        self.list.setUniformItemSizes(False)
-        self.list.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
-        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.list.activated.connect(self._activate)
-        self.list.clicked.connect(self._activate)
+        sidebar = QWidget()
+        sidebar.setObjectName("Sidebar")
+        sidebar.setFixedWidth(248)
+        side = QVBoxLayout(sidebar)
+        side.setContentsMargins(8, 16, 8, 12)
+        side.setSpacing(0)
+        side.addLayout(brand)
+        side.addSpacing(20)
+        side.addLayout(nav)
+        side.addStretch(1)
+        side.addWidget(self.nav_settings)
 
-        self.empty = QLabel()
-        self.empty.setProperty("textStyle", "empty")
-        self.empty.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
-        self.empty.setWordWrap(True)
+        # Content ----------------------------------------------------------------------
+        self.tools_page = ToolsPage(context, tools, self.open_tool)
+        self.settings_page = SettingsPage(context)
+        self.pages = QStackedWidget()
+        self.pages.setObjectName("PageBody")
+        self.pages.addWidget(self.tools_page)
+        self.pages.addWidget(self.settings_page)
 
-        self.stack = QStackedWidget()
-        self.stack.addWidget(self.list)
-        self.stack.addWidget(self.empty)
-
-        body = QWidget()
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(16, 16, 16, 16)
-        body_layout.setSpacing(12)
-        body_layout.addLayout(header)
-        body_layout.addWidget(self.stack, 1)
-
-        self.status_label = QLabel()
-        self.status_label.setProperty("textStyle", "caption")
+        self.meter_cpu = Meter(context.theme)
+        self.meter_memory = Meter(context.theme)
+        self.meter_battery = Meter(context.theme)
+        self.version_label = QLabel()
+        self.version_label.setProperty("textStyle", "caption")
         status = QWidget()
         status.setObjectName("StatusLine")
         status_layout = QHBoxLayout(status)
-        status_layout.setContentsMargins(16, 6, 16, 6)
-        status_layout.addWidget(self.status_label)
+        status_layout.setContentsMargins(32, 8, 32, 8)
+        status_layout.setSpacing(24)
+        status_layout.addWidget(self.meter_cpu)
+        status_layout.addWidget(self.meter_memory)
+        status_layout.addWidget(self.meter_battery)
+        status_layout.addStretch(1)
+        status_layout.addWidget(self.version_label)
+
+        layer = QFrame()
+        layer.setObjectName("Layer")
+        layer_layout = QVBoxLayout(layer)
+        layer_layout.setContentsMargins(0, 0, 0, 0)
+        layer_layout.setSpacing(0)
+        layer_layout.addWidget(self.pages, 1)
+        layer_layout.addWidget(status)
 
         central = QWidget()
-        layout = QVBoxLayout(central)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
-        layout.addWidget(body, 1)
-        layout.addWidget(status)
+        central.setObjectName("Sidebar")
+        root = QHBoxLayout(central)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+        root.addWidget(sidebar)
+        root.addWidget(layer, 1)
         self.setCentralWidget(central)
 
-        dialogs.shortcut(QKeySequence.StandardKey.Find, self, self._focus_search)
-        dialogs.shortcut("Ctrl+,", self, self.open_settings)
+        # Behavior ---------------------------------------------------------------------
+        for key in ("Ctrl+K", QKeySequence.StandardKey.Find):
+            dialogs.shortcut(key, self, self._focus_search)
+        dialogs.shortcut("Ctrl+,", self, self.show_settings)
 
         system_info.prime()
         self._timer = QTimer(self)
@@ -258,82 +365,71 @@ class OverviewWindow(QMainWindow):
         context.theme.on_change(self._on_theme_change)
         self._restore_geometry()
         self._on_theme_change()
+        self.nav_all.setChecked(True)
         self.retranslate()
 
-    # -- texts -----------------------------------------------------------------------------
+    # -- compatibility helpers used by tests and the smoke test --------------------------
+
+    @property
+    def search(self) -> SearchField:
+        return self.tools_page.search
+
+    def visible_tool_ids(self) -> list[str]:
+        return self.tools_page.visible_tool_ids()
+
+    # -- texts and theme -----------------------------------------------------------------
 
     def retranslate(self) -> None:
         self.setWindowTitle(tr("app.name"))
-        self.search.setPlaceholderText(tr("overview.search.placeholder"))
-        self.search.setAccessibleName(tr("overview.search.placeholder"))
-        self.settings_button.setText(tr("overview.settings"))
-        self.settings_button.setToolTip(f"{tr('overview.settings')} (Ctrl+,)")
-        self.list.setAccessibleName(tr("overview.list.accessible"))
-        self._rebuild()
+        self.app_name.setText(tr("app.name"))
+        self.nav_all.setText(tr("nav.all"))
+        self.nav_all.setAccessibleName(tr("nav.all"))
+        for category, button in self.nav_categories.items():
+            button.setText(tr(f"category.{category}"))
+            button.setAccessibleName(tr(f"category.{category}"))
+        self.nav_settings.setText(tr("overview.settings"))
+        self.nav_settings.setAccessibleName(tr("overview.settings"))
+        self.nav_settings.setToolTip(f"{tr('overview.settings')} (Ctrl+,)")
+        self.version_label.setText(tr("settings.about.version", version=__version__))
+        self.tools_page.retranslate()
         self._update_status()
 
     def _on_theme_change(self) -> None:
-        self.settings_button.setIcon(self._context.theme.icon("settings"))
-        self._search_action.setIcon(self._context.theme.icon("search", secondary=True))
-        self.list.viewport().update()
+        logo = QPixmap(str(resources_dir() / "app-24.png"))
+        logo.setDevicePixelRatio(2.0)
+        self.logo.setPixmap(logo)
+        painted: list[QWidget] = [
+            *self.findChildren(NavButton),
+            *self.findChildren(ToolCard),
+            *self.findChildren(Meter),
+        ]
+        for widget in painted:
+            widget.update()
 
-    # -- list ------------------------------------------------------------------------------
+    # -- navigation ----------------------------------------------------------------------
 
-    def _rebuild(self) -> None:
-        query = self.search.text().strip()
-        current = self._current_spec()
-        self.model.clear()
-        first_tool: QModelIndex | None = None
-        for category in CATEGORY_ORDER:
-            specs = [s for s in self._tools if s.category is category and matches(s, query)]
-            if not specs:
-                continue
-            group = QStandardItem(tr(f"category.{category.value}"))
-            group.setData("group", KIND_ROLE)
-            group.setFlags(Qt.ItemFlag.NoItemFlags)
-            group.setData(tr(f"category.{category.value}"), Qt.ItemDataRole.AccessibleTextRole)
-            self.model.appendRow(group)
-            for spec in specs:
-                item = QStandardItem(tr(spec.title_key))
-                item.setData("tool", KIND_ROLE)
-                item.setData(spec, SPEC_ROLE)
-                item.setData(tr(spec.description_key), DESC_ROLE)
-                item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-                description = tr(spec.description_key)
-                if not spec.available:
-                    description = f"{description} {tr('overview.not_available')}."
-                    item.setToolTip(tr("overview.not_available.tooltip"))
-                item.setData(description, Qt.ItemDataRole.AccessibleDescriptionRole)
-                self.model.appendRow(item)
-                if first_tool is None:
-                    first_tool = item.index()
-                if current is not None and spec.id == current.id:
-                    self.list.setCurrentIndex(item.index())
-        if first_tool is None:
-            self.empty.setText(tr("overview.empty", query=query))
-            self.stack.setCurrentWidget(self.empty)
-        else:
-            self.stack.setCurrentWidget(self.list)
-            if not self.list.currentIndex().isValid():
-                self.list.setCurrentIndex(first_tool)
+    def _show_tools(self, category: str) -> None:
+        self.pages.setCurrentWidget(self.tools_page)
+        if category != ALL and self.tools_page.search.text():
+            self.tools_page.search.blockSignals(True)
+            self.tools_page.search.clear()
+            self.tools_page.search.blockSignals(False)
+        self.tools_page.set_category(category)
 
-    def _current_spec(self) -> ToolSpec | None:
-        index = self.list.currentIndex() if hasattr(self, "list") else QModelIndex()
-        spec = index.data(SPEC_ROLE) if index.isValid() else None
-        return spec if isinstance(spec, ToolSpec) else None
+    def show_settings(self) -> None:
+        self.nav_settings.setChecked(True)
+        self.pages.setCurrentWidget(self.settings_page)
 
-    def visible_tool_ids(self) -> list[str]:
-        ids: list[str] = []
-        for row in range(self.model.rowCount()):
-            spec = self.model.item(row).data(SPEC_ROLE)
-            if isinstance(spec, ToolSpec):
-                ids.append(spec.id)
-        return ids
+    def show_category(self, category: str) -> None:
+        button = self.nav_all if category == ALL else self.nav_categories[category]
+        button.setChecked(True)
+        self._show_tools(category)
 
-    def _activate(self, index: QModelIndex) -> None:
-        spec = index.data(SPEC_ROLE)
-        if isinstance(spec, ToolSpec):
-            self.open_tool(spec)
+    def _focus_search(self) -> None:
+        if self.pages.currentWidget() is not self.tools_page:
+            self.show_category(ALL)
+        self.search.setFocus()
+        self.search.selectAll()
 
     def open_tool(self, spec: ToolSpec) -> None:
         if spec.factory is None:
@@ -347,32 +443,6 @@ class OverviewWindow(QMainWindow):
         window.raise_()
         window.activateWindow()
 
-    # -- search keyboard handling ------------------------------------------------------
-
-    def _focus_search(self) -> None:
-        self.search.setFocus()
-        self.search.selectAll()
-
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if (
-            watched is self.search
-            and event.type() == QEvent.Type.KeyPress
-            and isinstance(event, QKeyEvent)
-        ):
-            key = event.key()
-            if key == Qt.Key.Key_Down and self.stack.currentWidget() is self.list:
-                self.list.setFocus()
-                return True
-            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                spec = self._current_spec()
-                if spec is not None:
-                    self.open_tool(spec)
-                return True
-            if key == Qt.Key.Key_Escape and self.search.text():
-                self.search.clear()
-                return True
-        return super().eventFilter(watched, event)
-
     # -- status line ---------------------------------------------------------------------
 
     def _update_status(self) -> None:
@@ -381,42 +451,38 @@ class OverviewWindow(QMainWindow):
             snap = system_info.snapshot()
         except Exception:
             log.exception("Reading system information failed")
-            self.status_label.clear()
             return
-        parts = [
-            tr("status.cpu", value=format_percent(snap.cpu_percent, lang)),
+        self.meter_cpu.set_reading(
+            tr("status.cpu.label"), format_percent(snap.cpu_percent, lang), snap.cpu_percent / 100
+        )
+        self.meter_memory.set_reading(
+            tr("status.memory.label"),
             tr(
-                "status.memory",
+                "status.memory.value",
                 used=format_bytes(snap.memory_used, lang),
                 total=format_bytes(snap.memory_total, lang),
             ),
-        ]
-        if snap.battery_percent is not None:
-            key = "status.battery.charging" if snap.battery_charging else "status.battery"
-            parts.append(tr(key, value=format_percent(snap.battery_percent, lang)))
-        self.status_label.setText("  ·  ".join(parts))
+            snap.memory_used / snap.memory_total if snap.memory_total else None,
+        )
+        if snap.battery_percent is None:
+            self.meter_battery.hide()
+        else:
+            value = format_percent(snap.battery_percent, lang)
+            if snap.battery_charging:
+                value = tr("status.battery.charging", value=value)
+            self.meter_battery.set_reading(
+                tr("status.battery.label"), value, snap.battery_percent / 100
+            )
+            self.meter_battery.show()
 
-    # -- settings and window state -------------------------------------------------------
-
-    def open_settings(self) -> None:
-        if self._settings_dialog is None:
-            self._settings_dialog = SettingsDialog(self._context, self)
-            self._settings_dialog.finished.connect(self._settings_closed)
-        self._settings_dialog.show()
-        self._settings_dialog.raise_()
-        self._settings_dialog.activateWindow()
-
-    def _settings_closed(self) -> None:
-        if self._settings_dialog is not None:
-            self._settings_dialog.deleteLater()
-            self._settings_dialog = None
+    # -- window state --------------------------------------------------------------------
 
     def _restore_geometry(self) -> None:
         saved = self._context.settings.get("window_geometry").get("overview")
         if isinstance(saved, str):
             self.restoreGeometry(QByteArray.fromBase64(saved.encode("ascii")))
         else:
-            self.resize(760, 640)
+            self.resize(1080, 720)
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
         geometry = dict(self._context.settings.get("window_geometry"))

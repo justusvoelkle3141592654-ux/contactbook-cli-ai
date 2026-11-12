@@ -22,7 +22,6 @@ def main() -> int:
 
     from desktop_organizer.app.context import AppContext
     from desktop_organizer.app.overview import OverviewWindow
-    from desktop_organizer.app.settings_dialog import SettingsDialog
     from desktop_organizer.app.theming import ThemeManager
     from desktop_organizer.core.i18n import Translator, install
     from desktop_organizer.core.paths import AppPaths, resources_dir
@@ -44,29 +43,29 @@ def main() -> int:
     context = AppContext(paths, settings, translator, db, theme, "")
 
     shots: list[str] = []
+    window = OverviewWindow(context, all_tools())
+    window.resize(1080, 720)
+    window.show()
     for mode in ("light", "dark"):
         theme.set_mode(mode)
-        window = OverviewWindow(context, all_tools())
-        window.resize(760, 640)
-        window.show()
-        window.list.setCurrentIndex(window.model.index(1, 0))
-        window.status_label.setText(
-            "CPU 12\u00a0%  ·  Arbeitsspeicher 8,1 GB von 16,0 GB  ·  Akku 84\u00a0%"
-        )
+        window.show_category("all")
+        window.meter_cpu.set_reading("CPU", "12\u00a0%", 0.12)
+        window.meter_memory.set_reading("Arbeitsspeicher", "8,1 GB von 16,0 GB", 0.51)
+        window.meter_battery.set_reading("Akku", "84\u00a0%", 0.84)
+        window.meter_battery.show()
         app.processEvents()
         name = OUT / f"overview-{mode}.png"
         window.grab().save(str(name))
         shots.append(name.name)
 
-        dialog = SettingsDialog(context, window)
-        dialog.location_value.setText("C:\\Users\\anna\\AppData\\Roaming\\DesktopOrganizer")
-        dialog.show()
+        window.show_settings()
+        window.settings_page.location_card.description.setText(
+            "C:\\Users\\anna\\AppData\\Roaming\\DesktopOrganizer"
+        )
         app.processEvents()
         name = OUT / f"settings-{mode}.png"
-        dialog.grab().save(str(name))
+        window.grab().save(str(name))
         shots.append(name.name)
-        dialog.close()
-        window.hide()
 
     db.close()
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")

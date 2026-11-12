@@ -18,7 +18,15 @@ messages, validation, progress outcome), never as decoration.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `window` | `#F5F5F5` | `#1C1C1C` | Window background |
+| `window` | `#F3F3F3` | `#1F1F1F` | Window background, sidebar |
+| `layer` | `#F9F9F9` | `#272727` | Content area next to the sidebar, tool window background |
+| `layer_border` | `#E5E5E5` | `#1A1A1A` | Edge of the content layer |
+| `card` | `#FFFFFF` | `#2D2D2D` | Tool cards, settings cards, tables |
+| `card_hover` | `#F6F6F6` | `#333333` | Hovered card or table row |
+| `card_border` | `#E3E3E3` | `#3A3A3A` | Card and table outline |
+| `accent_subtle` | `#E6EEFA` | `#24344B` | Background of icon tiles |
+| `nav_hover` | `#EAEAEA` | `#2D2D2D` | Hovered sidebar entry |
+| `nav_selected` | `#E4E4E4` | `#333333` | Selected sidebar entry, badges, meter track |
 | `surface` | `#FFFFFF` | `#262626` | Lists, inputs, content areas |
 | `surface_alt` | `#EDEDED` | `#303030` | Hover, secondary buttons, table header |
 | `surface_pressed` | `#E3E3E3` | `#383838` | Pressed state of neutral controls |
@@ -54,7 +62,7 @@ Two weights: Regular (400) and Semibold (600).
 | Body | 14 px | 400 | Default text, inputs, buttons, list titles (600) |
 | Subtitle | 16 px | 600 | Section headings in dialogs and tool windows |
 | Title | 20 px | 600 | Tool window heading |
-| Display | 28 px | 600 | Reserved for large single values (for example system monitor readings) |
+| Display | 28 px | 600 | Page titles in the main window, large single values |
 
 Sizes are logical pixels; Windows display scaling applies on top.
 
@@ -63,7 +71,8 @@ Sizes are logical pixels; Windows display scaling applies on top.
 - 8 px grid. Allowed spacing values: 4 (tight pairs only), 8, 12, 16, 24, 32.
 - Window content margin: 16 px. Gap between toolbar and content: 12 px.
 - Control height: 32 px. List row: 56 px for two-line rows, 36 px for one-line rows.
-- Corner radius: 4 px for controls and rows, 6 px for dialogs. Nothing larger.
+- Corner radius: 4 px for controls and sidebar entries, 6 px for small icon tiles, 8 px for cards, tables, the content layer and large icon tiles. Nothing larger.
+- Main window: sidebar 248 px on `window`, content on `layer` with a rounded top-left corner, page margins 32 px, page title then 20 px gap to content.
 - No shadows except the native window shadow.
 
 ## Iconography
@@ -72,7 +81,26 @@ Sizes are logical pixels; Windows display scaling applies on top.
 - Rendered at 16 px in buttons and 20 px in lists, tinted with the current text color.
 - Icons accompany labels; they never replace a label (exception: the clear button inside a search field, which has an accessible name and tooltip).
 
+## Layout patterns
+
+**Main window.** Sidebar with app name, "All tools", one entry per category (with count) and Settings at the bottom. The content layer shows the selected page and the status line.
+
+**Tool window.** Header (48 px icon tile, title 20 px, one-line description), toolbar (inputs and actions), content (table or form in a card), footer (hint text left, actions right). The step the user is on has the one primary button.
+
 ## Components
+
+**Sidebar entry.** 36 px high, icon 16 px, label 14 px (semibold when selected), count right-aligned in caption style. Selected: `nav_selected` background plus 3 px accent marker. Focus ring only after keyboard navigation.
+
+**Tool card.** 76 px high, `card` background, 1 px `card_border`, 8 px radius. 40 px icon tile in `accent_subtle` with the icon in `accent`, title (Body semibold), description (Caption, secondary, one line, full text in the tooltip). Right side: chevron when the tool is available, otherwise a neutral "Planned" badge. Two columns from 720 px content width. Arrow keys move between cards.
+
+**Settings card.** Same frame as a tool card, at least 68 px high: 32 px icon tile, title and description, controls right-aligned.
+
+**Search field with hint.** Leading search icon, trailing key hint ("Ctrl+K") that disappears while typing.
+
+**Meter.** Caption label, 56 x 4 px track in `nav_selected` with an `accent` fill, value. Used in the status line.
+
+**Badge.** 22 px pill, `nav_selected` background, Caption text in `text_secondary`. Neutral information only.
+
 
 **Primary button.** Accent fill, `on_accent` text, 32 px high, 16 px horizontal padding. At most one per window region.
 
@@ -84,7 +112,7 @@ Sizes are logical pixels; Windows display scaling applies on top.
 
 **Combo box.** Same frame as a text field, chevron-down icon on the right, at least 240 px wide in forms.
 
-**List row.** Icon, title (Body semibold), description (Caption, secondary). Hover `surface_alt`. Selected: `selection` background plus a 3 px accent marker on the left. Disabled rows keep their text readable and show a plain status label on the right ("Not available yet").
+**List row (inside tables).** Icon, title (Body semibold), description (Caption, secondary). Hover `surface_alt`. Selected: `selection` background plus a 3 px accent marker on the left. Disabled rows keep their text readable and show a plain status label on the right ("Not available yet").
 
 **Group heading.** Caption semibold, `text_secondary`, 16 px above, 4 px below.
 

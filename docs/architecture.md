@@ -9,8 +9,9 @@ src/desktop_organizer/
 ├─ app/                 Qt shell
 │  ├─ application.py    start-up sequence, --smoke-test
 │  ├─ context.py        AppContext: services handed to every window
-│  ├─ overview.py       overview window, tool list delegate, status line
-│  ├─ settings_dialog.py
+│  ├─ overview.py       main window: sidebar, tools page, status line
+│  ├─ settings_page.py  settings page (settings cards)
+│  ├─ widgets.py        painted building blocks: sidebar entry, tool card, meter, cards
 │  ├─ tool_window.py    base class for every tool window
 │  ├─ dialogs.py        shared confirmation and message dialogs
 │  ├─ theming.py        applies tokens to Qt, follows Windows light/dark, tinted icons

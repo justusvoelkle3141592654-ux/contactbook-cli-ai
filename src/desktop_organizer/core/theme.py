@@ -27,10 +27,18 @@ class Tokens:
     warning: str
     error: str
     on_error: str
+    layer: str
+    layer_border: str
+    card: str
+    card_hover: str
+    card_border: str
+    accent_subtle: str
+    nav_hover: str
+    nav_selected: str
 
 
 LIGHT = Tokens(
-    window="#F5F5F5",
+    window="#F3F3F3",
     surface="#FFFFFF",
     surface_alt="#EDEDED",
     surface_pressed="#E3E3E3",
@@ -48,10 +56,18 @@ LIGHT = Tokens(
     warning="#8A5A00",
     error="#C42B1C",
     on_error="#FFFFFF",
+    layer="#F9F9F9",
+    layer_border="#E5E5E5",
+    card="#FFFFFF",
+    card_hover="#F6F6F6",
+    card_border="#E3E3E3",
+    accent_subtle="#E6EEFA",
+    nav_hover="#EAEAEA",
+    nav_selected="#E4E4E4",
 )
 
 DARK = Tokens(
-    window="#1C1C1C",
+    window="#1F1F1F",
     surface="#262626",
     surface_alt="#303030",
     surface_pressed="#383838",
@@ -69,6 +85,14 @@ DARK = Tokens(
     warning="#E2B252",
     error="#FF8F85",
     on_error="#2B0E0B",
+    layer="#272727",
+    layer_border="#1A1A1A",
+    card="#2D2D2D",
+    card_hover="#333333",
+    card_border="#3A3A3A",
+    accent_subtle="#24344B",
+    nav_hover="#2D2D2D",
+    nav_selected="#333333",
 )
 
 
@@ -90,8 +114,11 @@ def build_stylesheet(t: Tokens) -> str:
 QWidget {{
     color: {t.text};
 }}
-QMainWindow, QDialog, QWidget#ToolRoot {{
+QMainWindow, QDialog {{
     background: {t.window};
+}}
+QWidget#ToolRoot {{
+    background: {t.layer};
 }}
 QLabel {{
     background: transparent;
@@ -102,6 +129,37 @@ QLabel[textStyle="subtitle"] {{ font-size: 16px; font-weight: 600; }}
 QLabel[textStyle="title"] {{ font-size: 20px; font-weight: 600; }}
 QLabel[textStyle="secondary"] {{ color: {t.text_secondary}; }}
 QLabel[textStyle="empty"] {{ color: {t.text_secondary}; padding: 24px; }}
+QLabel[textStyle="display"] {{ font-size: 28px; font-weight: 600; }}
+QLabel[textStyle="section"] {{ font-size: 14px; font-weight: 600; }}
+QLabel[textStyle="cardTitle"] {{ font-size: 14px; }}
+QLabel[textStyle="appName"] {{ font-size: 14px; font-weight: 600; }}
+
+QWidget#Sidebar {{ background: {t.window}; }}
+QFrame#Layer {{
+    background: {t.layer};
+    border-top: 1px solid {t.layer_border};
+    border-left: 1px solid {t.layer_border};
+    border-top-left-radius: 8px;
+}}
+QWidget#PageBody, QScrollArea#PageScroll, QScrollArea#PageScroll > QWidget > QWidget {{
+    background: transparent;
+}}
+QScrollArea#PageScroll {{ border: none; }}
+QFrame#Card {{
+    background: {t.card};
+    border: 1px solid {t.card_border};
+    border-radius: 8px;
+}}
+QLabel#IconTile {{ background: {t.accent_subtle}; border-radius: 6px; }}
+QLabel#KeyHint {{
+    color: {t.text_secondary};
+    background: {t.layer};
+    border: 1px solid {t.card_border};
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 12px;
+}}
+QPushButton[role="danger"] {{ color: {t.error}; }}
 
 QPushButton {{
     background: {t.surface};
@@ -152,19 +210,43 @@ QComboBox QAbstractItemView {{
 }}
 
 QListView, QTreeView, QTableView {{
-    background: {t.surface};
-    border: 1px solid {t.divider};
-    border-radius: 4px;
+    background: {t.card};
+    alternate-background-color: {t.card};
+    border: 1px solid {t.card_border};
+    border-radius: 8px;
     outline: none;
+    selection-background-color: {t.selection};
+    selection-color: {t.text};
 }}
-QHeaderView::section {{
-    background: {t.surface_alt};
-    border: none;
+QTableView::item, QTreeView::item {{
+    padding: 0 8px;
     border-bottom: 1px solid {t.divider};
-    padding: 6px 8px;
+}}
+QTableView::item:hover, QTreeView::item:hover {{ background: {t.card_hover}; }}
+QTableView::item:selected, QTreeView::item:selected {{
+    background: {t.selection};
+    color: {t.text};
+}}
+QHeaderView {{ background: transparent; border: none; }}
+QHeaderView::section {{
+    background: {t.card};
+    color: {t.text_secondary};
+    border: none;
+    border-bottom: 1px solid {t.card_border};
+    padding: 8px;
     font-size: 12px;
     font-weight: 600;
 }}
+QTableCornerButton::section {{ background: {t.card}; border: none; }}
+QProgressBar {{
+    background: {t.nav_selected};
+    border: none;
+    border-radius: 2px;
+    max-height: 4px;
+    min-height: 4px;
+    text-align: center;
+}}
+QProgressBar::chunk {{ background: {t.accent}; border-radius: 2px; }}
 
 QScrollBar:vertical {{ background: transparent; width: 10px; margin: 2px; }}
 QScrollBar::handle:vertical {{
@@ -179,7 +261,7 @@ QScrollBar::handle:horizontal {{
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 
 QFrame#Divider {{ background: {t.divider}; max-height: 1px; min-height: 1px; border: none; }}
-QWidget#StatusLine {{ background: {t.window}; border-top: 1px solid {t.divider}; }}
+QWidget#StatusLine {{ background: {t.layer}; border-top: 1px solid {t.card_border}; }}
 
 QToolTip {{
     background: {t.surface};
