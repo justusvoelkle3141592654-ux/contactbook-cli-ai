@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "desktop-organizer"
+description = "A local Windows toolbox: file cleaner, backups, notes, tasks and more."
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dynamic = ["version"]
+dependencies = [
+    "PySide6-Essentials==6.8.1",
+    "psutil==6.1.1",
+]
+
+[project.gui-scripts]
+desktop-organizer = "desktop_organizer.app.application:run"
+
+[tool.setuptools.dynamic]
+version = { attr = "desktop_organizer.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+desktop_organizer = ["resources/**/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests", "build"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "RUF", "PTH"]
+ignore = ["RUF001", "RUF003"]  # typographic quotes in strings are intentional
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+packages = ["desktop_organizer"]
+strict = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["psutil", "psutil.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
+
+[tool.coverage.run]
+source = ["desktop_organizer"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false

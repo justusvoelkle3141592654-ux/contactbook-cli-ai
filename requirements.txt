@@ -1,0 +1,4 @@
+# Runtime dependencies, pinned. Keep this list short.
+PySide6-Essentials==6.8.1
+shiboken6==6.8.1
+psutil==6.1.1
