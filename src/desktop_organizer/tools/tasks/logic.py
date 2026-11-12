@@ -126,7 +126,13 @@ def _where(name: str, now: float) -> tuple[str, tuple[object, ...]]:
     }[name]
 
 
-def query(conn: sqlite3.Connection, filter_name: str, list_name: str = "", now: float | None = None, text: str = "") -> list[Task]:
+def query(
+    conn: sqlite3.Connection,
+    filter_name: str,
+    list_name: str = "",
+    now: float | None = None,
+    text: str = "",
+) -> list[Task]:
     now = time.time() if now is None else now
     where, params = _where(filter_name, now)
     sql = f"SELECT * FROM tasks WHERE {where}"
@@ -149,12 +155,15 @@ def counts(conn: sqlite3.Connection, now: float | None = None) -> dict[str, int]
     result = {}
     for name in FILTERS:
         where, params = _where(name, now)
-        result[name] = conn.execute(f"SELECT COUNT(*) FROM tasks WHERE {where}", params).fetchone()[0]
+        result[name] = conn.execute(f"SELECT COUNT(*) FROM tasks WHERE {where}", params).fetchone()[
+            0
+        ]
     return result
 
 
 def lists(conn: sqlite3.Connection) -> list[tuple[str, int]]:
     rows = conn.execute(
-        "SELECT list, SUM(done = 0) FROM tasks WHERE list != '' GROUP BY list ORDER BY list COLLATE NOCASE"
+        "SELECT list, SUM(done = 0) FROM tasks WHERE list != ''"
+        " GROUP BY list ORDER BY list COLLATE NOCASE"
     ).fetchall()
     return [(r[0], int(r[1] or 0)) for r in rows]

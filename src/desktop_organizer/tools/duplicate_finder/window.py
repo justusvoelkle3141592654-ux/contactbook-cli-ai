@@ -207,7 +207,9 @@ class DuplicateFinderWindow(ToolWindow):
         self.auto_button.setText(t("auto_select"))
         self.export_button.setText(tr("common.export_csv"))
         self.move_button.setText(t("move"))
-        self.tree.setHeaderLabels([t("col.file"), t("col.size"), t("col.modified"), t("col.folder")])
+        self.tree.setHeaderLabels(
+            [t("col.file"), t("col.size"), t("col.modified"), t("col.folder")]
+        )
         self.empty.set_texts(t("empty.title"), t("empty.text"))
         self._load_quick_options()
         current = self.sort.currentData()
@@ -280,7 +282,11 @@ class DuplicateFinderWindow(ToolWindow):
             if not folders:
                 return
         options = self._scan_options()
-        labels = {"partial": t("stage.partial"), "full": t("stage.full"), "compare": t("stage.compare")}
+        labels = {
+            "partial": t("stage.partial"),
+            "full": t("stage.full"),
+            "compare": t("stage.compare"),
+        }
 
         def work(job: Job) -> ScanResult:
             return scan(folders, options, job, labels)
@@ -444,8 +450,12 @@ class DuplicateFinderWindow(ToolWindow):
             menu.addAction(tr("common.copy_path"), lambda: copy_text(str(entry.path)))
             menu.addSeparator()
             menu.addAction(t("keep_only_this"), lambda: self._keep_only(group, entry))
-            menu.addAction(t("exclude_folder"), lambda: self._select_in_folder(entry.path.parent, False))
-            menu.addAction(t("select_folder"), lambda: self._select_in_folder(entry.path.parent, True))
+            menu.addAction(
+                t("exclude_folder"), lambda: self._select_in_folder(entry.path.parent, False)
+            )
+            menu.addAction(
+                t("select_folder"), lambda: self._select_in_folder(entry.path.parent, True)
+            )
         else:
             group = tree_item.data(0, GROUP_ROLE)
             menu.addAction(t("group.unselect"), lambda: self._group_select(group, False))
@@ -547,11 +557,17 @@ class DuplicateFinderWindow(ToolWindow):
         if result.failed:
             self.info.show_message(
                 "warning",
-                t("action.partial", done=result.done, failed=len(result.failed), first=result.failed[0][1]),
+                t(
+                    "action.partial",
+                    done=result.done,
+                    failed=len(result.failed),
+                    first=result.failed[0][1],
+                ),
             )
         else:
             self.info.show_message(
-                "success", t("action.done", count=result.done, size=format_bytes(result.freed, lang))
+                "success",
+                t("action.done", count=result.done, size=format_bytes(result.freed, lang)),
             )
         self._remove_missing()
 
@@ -579,7 +595,14 @@ class DuplicateFinderWindow(ToolWindow):
         self.info.show_message("success", tr("common.saved_to", path=str(target)))
 
     def set_busy(self, busy: bool) -> None:
-        for widget in (self.folders, self.scan_button, self.method, self.min_size, self.types, self.tree):
+        for widget in (
+            self.folders,
+            self.scan_button,
+            self.method,
+            self.min_size,
+            self.types,
+            self.tree,
+        ):
             widget.setEnabled(not busy)
         self._update_footer()
 
@@ -589,5 +612,3 @@ class DuplicateFinderWindow(ToolWindow):
 
     def handle_message(self, _text: str) -> None:
         """Brought to the front by a second start; nothing else to do."""
-
-

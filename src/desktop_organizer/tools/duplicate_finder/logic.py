@@ -12,7 +12,7 @@ import hashlib
 import os
 import stat
 from collections import defaultdict
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -77,7 +77,9 @@ def _hidden(name: str, st: os.stat_result) -> bool:
     )
 
 
-def walk(folders: list[Path], options: Options, job: Job, result: ScanResult) -> Iterator[FileEntry]:
+def walk(
+    folders: list[Path], options: Options, job: Job, result: ScanResult
+) -> Iterator[FileEntry]:
     seen_paths: set[str] = set()
     seen_inodes: set[tuple[int, int]] = set()
     counter = 0
@@ -85,7 +87,10 @@ def walk(folders: list[Path], options: Options, job: Job, result: ScanResult) ->
         stack = [root]
         while stack:
             folder = stack.pop()
-            if safety.classify(str(folder)) in (safety.PathVerdict.SYSTEM, safety.PathVerdict.OTHER_USER):
+            if safety.classify(str(folder)) in (
+                safety.PathVerdict.SYSTEM,
+                safety.PathVerdict.OTHER_USER,
+            ):
                 result.skipped += 1
                 continue
             try:
@@ -152,7 +157,13 @@ def _full_hash(path: Path, job: Job) -> bytes:
     return digest.digest()
 
 
-def _regroup(groups: Iterable[list[FileEntry]], key_fn, job: Job, result: ScanResult, label: str) -> list[list[FileEntry]]:  # type: ignore[no-untyped-def]
+def _regroup(
+    groups: Iterable[list[FileEntry]],
+    key_fn: Callable[[FileEntry], object],
+    job: Job,
+    result: ScanResult,
+    label: str,
+) -> list[list[FileEntry]]:
     out: list[list[FileEntry]] = []
     groups = list(groups)
     total = sum(len(g) for g in groups)
@@ -170,7 +181,12 @@ def _regroup(groups: Iterable[list[FileEntry]], key_fn, job: Job, result: ScanRe
     return out
 
 
-def scan(folders: list[Path], options: Options, job: Job | None = None, labels: dict[str, str] | None = None) -> ScanResult:
+def scan(
+    folders: list[Path],
+    options: Options,
+    job: Job | None = None,
+    labels: dict[str, str] | None = None,
+) -> ScanResult:
     job = job or Job()
     labels = labels or {}
     result = ScanResult()
@@ -180,10 +196,16 @@ def scan(folders: list[Path], options: Options, job: Job | None = None, labels: 
     candidates = [g for g in by_size.values() if len(g) > 1]
 
     if options.method == "name_size":
-        groups = _regroup(candidates, lambda e: e.path.name.casefold(), job, result, labels.get("compare", ""))
+        groups = _regroup(
+            candidates, lambda e: e.path.name.casefold(), job, result, labels.get("compare", "")
+        )
     else:
         groups = _regroup(
-            candidates, lambda e: _partial_hash(e.path, e.size), job, result, labels.get("partial", "")
+            candidates,
+            lambda e: _partial_hash(e.path, e.size),
+            job,
+            result,
+            labels.get("partial", ""),
         )
         if options.method == "content":
             groups = _regroup(

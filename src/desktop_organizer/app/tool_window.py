@@ -122,9 +122,7 @@ class ToolWindow(QWidget):
         return tool_settings.values(self.context.settings, self.tool_id, self.settings_fields)
 
     def open_settings(self) -> None:
-        dialog = ToolSettingsDialog(
-            self.context.settings, self.tool_id, self.settings_fields, self
-        )
+        dialog = ToolSettingsDialog(self.context.settings, self.tool_id, self.settings_fields, self)
         dialog.exec()
 
     def _settings_changed(self, key: str, _value: object) -> None:

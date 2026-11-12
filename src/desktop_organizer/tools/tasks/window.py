@@ -52,7 +52,13 @@ from desktop_organizer.tools.tasks.logic import (
 )
 
 TOOL = "tasks"
-FILTER_ICONS = {"open": "list-checks", "today": "calendar", "overdue": "circle-alert", "upcoming": "calendar-check", "done": "check"}
+FILTER_ICONS = {
+    "open": "list-checks",
+    "today": "calendar",
+    "overdue": "circle-alert",
+    "upcoming": "calendar-check",
+    "done": "check",
+}
 
 
 def t(key: str, **kwargs: object) -> str:
@@ -60,7 +66,16 @@ def t(key: str, **kwargs: object) -> str:
 
 
 class TaskDialog(QDialog):
-    def __init__(self, parent: QWidget, task: Task | None, list_names: list[str], has_reminder: bool, lead: int, default_hour: int, language: str) -> None:
+    def __init__(
+        self,
+        parent: QWidget,
+        task: Task | None,
+        list_names: list[str],
+        has_reminder: bool,
+        lead: int,
+        default_hour: int,
+        language: str,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle(t("edit") if task else t("new"))
         self.setMinimumWidth(560)
@@ -71,8 +86,14 @@ class TaskDialog(QDialog):
         self.due = QDateTimeEdit()
         self.due.setCalendarPopup(True)
         self.due.setDisplayFormat("dd.MM.yyyy HH:mm" if language == "de" else "yyyy-MM-dd HH:mm")
-        default_due = datetime.now().replace(hour=default_hour, minute=0, second=0, microsecond=0) + timedelta(days=1)
-        self.due.setDateTime(QDateTime.fromSecsSinceEpoch(int(task.due if task and task.due else default_due.timestamp())))
+        default_due = datetime.now().replace(
+            hour=default_hour, minute=0, second=0, microsecond=0
+        ) + timedelta(days=1)
+        self.due.setDateTime(
+            QDateTime.fromSecsSinceEpoch(
+                int(task.due if task and task.due else default_due.timestamp())
+            )
+        )
         self.has_due.setChecked(bool(task and task.due))
         self.priority = QComboBox()
         for value in (2, 1, 0):
@@ -83,7 +104,9 @@ class TaskDialog(QDialog):
         self.list_name.addItem("")
         self.list_name.addItems(list_names)
         self.list_name.setCurrentText(task.list if task else "")
-        self.list_name.lineEdit().setPlaceholderText(t("field.list.placeholder"))
+        line = self.list_name.lineEdit()
+        if line is not None:
+            line.setPlaceholderText(t("field.list.placeholder"))
         self.remind = QCheckBox(t("field.remind"))
         self.remind.setChecked(has_reminder)
         self.lead = QSpinBox()
@@ -174,7 +197,9 @@ class TasksWindow(ToolWindow):
         left_layout.addWidget(self.nav)
 
         self.quick = QLineEdit()
-        self.quick.addAction(context.theme.icon("plus", secondary=True), QLineEdit.ActionPosition.LeadingPosition)
+        self.quick.addAction(
+            context.theme.icon("plus", secondary=True), QLineEdit.ActionPosition.LeadingPosition
+        )
         self.quick.returnPressed.connect(self.quick_add)
         self.details_button = QPushButton()
         self.details_button.clicked.connect(self.new_task)
@@ -245,7 +270,10 @@ class TasksWindow(ToolWindow):
         self.nav.clear()
         selected = None
         for name in FILTERS:
-            entry = QListWidgetItem(self.context.theme.icon(FILTER_ICONS[name], secondary=True), f"{self._filter_label(name)}   {number[name]}")
+            entry = QListWidgetItem(
+                self.context.theme.icon(FILTER_ICONS[name], secondary=True),
+                f"{self._filter_label(name)}   {number[name]}",
+            )
             entry.setData(Qt.ItemDataRole.UserRole, ("filter", name))
             self.nav.addItem(entry)
             if not self._list and name == self._filter:
@@ -259,7 +287,9 @@ class TasksWindow(ToolWindow):
             header.setFont(font)
             self.nav.addItem(header)
             for name, open_count in task_lists:
-                entry = QListWidgetItem(self.context.theme.icon("folder", secondary=True), f"{name}   {open_count}")
+                entry = QListWidgetItem(
+                    self.context.theme.icon("folder", secondary=True), f"{name}   {open_count}"
+                )
                 entry.setData(Qt.ItemDataRole.UserRole, ("list", name))
                 self.nav.addItem(entry)
                 if self._list == name:
@@ -312,14 +342,25 @@ class TasksWindow(ToolWindow):
             if task.due and task.due < now and not task.done:
                 due.setForeground(self._error_brush())
                 due.setText(f"{due_text}  ·  {t('overdue')}")
-            self.table.source.appendRow([title, due, item(t(f"priority.{task.priority}"), sort=-task.priority), item(task.list)])
+            self.table.source.appendRow(
+                [
+                    title,
+                    due,
+                    item(t(f"priority.{task.priority}"), sort=-task.priority),
+                    item(task.list),
+                ]
+            )
         self.table.setSortingEnabled(True)
         self._filling = False
         self.table.setVisible(bool(tasks))
         self.empty.setVisible(not tasks)
-        self.empty.set_texts(t("empty.title"), t(f"empty.{self._filter}") if not self._list else t("empty.list"))
+        self.empty.set_texts(
+            t("empty.title"), t(f"empty.{self._filter}") if not self._list else t("empty.list")
+        )
         number = counts(self.conn)
-        self.summary.setText(t("summary", open=number["open"], today=number["today"], overdue=number["overdue"]))
+        self.summary.setText(
+            t("summary", open=number["open"], today=number["today"], overdue=number["overdue"])
+        )
         self.clear_done_button.setEnabled(number["done"] > 0)
 
     def _error_brush(self) -> Any:
@@ -387,9 +428,13 @@ class TasksWindow(ToolWindow):
         if values["remind"] and values["due"]:
             when = values["due"] - values["lead"] * 60
             if existing:
-                reminders.update(self.conn, existing.id, values["title"], when, "once", 1, t("reminder_message"))
+                reminders.update(
+                    self.conn, existing.id, values["title"], when, "once", 1, t("reminder_message")
+                )
             else:
-                reminders.create(self.conn, values["title"], when, "once", 1, t("reminder_message"), task_id)
+                reminders.create(
+                    self.conn, values["title"], when, "once", 1, t("reminder_message"), task_id
+                )
         elif existing:
             reminders.delete(self.conn, existing.id)
 
@@ -398,7 +443,11 @@ class TasksWindow(ToolWindow):
         if task is None:
             return
         if self.option("confirm_delete") and not dialogs.confirm_destructive(
-            self, t("delete.title", name=task.title), t("delete.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("delete.title", name=task.title),
+            t("delete.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         existing = reminders.for_task(self.conn, task_id)
@@ -410,10 +459,18 @@ class TasksWindow(ToolWindow):
     def clear_done(self) -> None:
         number = counts(self.conn)["done"]
         if not dialogs.confirm_destructive(
-            self, t("clear_done.title", count=number), t("clear_done.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("clear_done.title", count=number),
+            t("clear_done.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         delete_done(self.conn)
+        self.refresh()
+
+    def _set_done(self, task_id: int, done: bool) -> None:
+        set_done(self.conn, task_id, done)
         self.refresh()
 
     def _menu(self, row: int, pos: QPoint) -> None:
@@ -422,7 +479,10 @@ class TasksWindow(ToolWindow):
         if task is None:
             return
         menu = QMenu(self)
-        menu.addAction(t("mark_open") if task.done else t("mark_done"), lambda: (set_done(self.conn, task_id, not task.done), self.refresh()))
+        menu.addAction(
+            t("mark_open") if task.done else t("mark_done"),
+            lambda: self._set_done(task_id, not task.done),
+        )
         menu.addAction(tr("common.edit"), lambda: self.edit(task_id))
         menu.addSeparator()
         menu.addAction(tr("common.delete"), lambda: self.remove(task_id))
@@ -431,10 +491,34 @@ class TasksWindow(ToolWindow):
     def screenshot_prepare(self) -> None:
         if not query(self.conn, "open") and not query(self.conn, "done"):
             now = datetime.now().replace(minute=0, second=0, microsecond=0)
-            create(self.conn, "Angebot an Kunden senden", (now - timedelta(hours=3)).timestamp(), 2, "Arbeit")
-            create(self.conn, "Steuerunterlagen sortieren", (now + timedelta(hours=4)).timestamp(), 1, "Privat")
-            create(self.conn, "Team-Meeting vorbereiten", (now + timedelta(days=2)).timestamp(), 1, "Arbeit")
-            create(self.conn, "Fahrrad zur Inspektion", (now + timedelta(days=6)).timestamp(), 0, "Privat")
+            create(
+                self.conn,
+                "Angebot an Kunden senden",
+                (now - timedelta(hours=3)).timestamp(),
+                2,
+                "Arbeit",
+            )
+            create(
+                self.conn,
+                "Steuerunterlagen sortieren",
+                (now + timedelta(hours=4)).timestamp(),
+                1,
+                "Privat",
+            )
+            create(
+                self.conn,
+                "Team-Meeting vorbereiten",
+                (now + timedelta(days=2)).timestamp(),
+                1,
+                "Arbeit",
+            )
+            create(
+                self.conn,
+                "Fahrrad zur Inspektion",
+                (now + timedelta(days=6)).timestamp(),
+                0,
+                "Privat",
+            )
             create(self.conn, "Bücher zurückgeben")
             done = create(self.conn, "Backup einrichten", None, 1, "Privat")
             set_done(self.conn, done, True)

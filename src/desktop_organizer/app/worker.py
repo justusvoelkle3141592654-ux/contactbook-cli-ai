@@ -46,7 +46,7 @@ class Worker(QRunnable):
             result = self._function(self.job)
         except Cancelled:
             self.signals.cancelled.emit()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - reported to the user, logged with traceback
             log.error("Background task failed\n%s", traceback.format_exc())
             self.signals.failed.emit(str(exc) or type(exc).__name__)
         else:

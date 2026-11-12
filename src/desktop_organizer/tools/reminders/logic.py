@@ -134,8 +134,8 @@ def update(
     message: str,
 ) -> None:
     conn.execute(
-        "UPDATE reminders SET title = ?, due = ?, recurrence = ?, interval = ?, message = ?, enabled = 1"
-        " WHERE id = ?",
+        "UPDATE reminders SET title = ?, due = ?, recurrence = ?, interval = ?, message = ?,"
+        " enabled = 1 WHERE id = ?",
         (title, due, recurrence, interval, message, reminder_id),
     )
 
@@ -178,7 +178,8 @@ def mark_fired(conn: sqlite3.Connection, reminder: Reminder, now: float) -> None
         )
     else:
         conn.execute(
-            "UPDATE reminders SET due = ?, last_fired = ? WHERE id = ?", (following, now, reminder.id)
+            "UPDATE reminders SET due = ?, last_fired = ? WHERE id = ?",
+            (following, now, reminder.id),
         )
 
 

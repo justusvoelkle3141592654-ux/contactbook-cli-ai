@@ -109,7 +109,9 @@ def unique_target(target: Path, taken: set[Path]) -> Path:
     return candidate
 
 
-def make_plan(folder: Path, options: Options, job: Job | None = None, now: float | None = None) -> Plan:
+def make_plan(
+    folder: Path, options: Options, job: Job | None = None, now: float | None = None
+) -> Plan:
     job = job or Job()
     now = time.time() if now is None else now
     names = FOLDER_NAMES.get(options.folder_language, FOLDER_NAMES["en"])

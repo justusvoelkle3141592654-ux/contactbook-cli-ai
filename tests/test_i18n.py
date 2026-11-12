@@ -100,7 +100,9 @@ def test_resolve_language_respects_explicit_choice() -> None:
 
 def test_translator_formats_and_falls_back(tmp_path: Path) -> None:
     (tmp_path / "de.json").write_text('{"a": "Hallo {name}"}', encoding="utf-8")
-    (tmp_path / "en.json").write_text('{"a": "Hello {name}", "b": "Only English"}', encoding="utf-8")
+    (tmp_path / "en.json").write_text(
+        '{"a": "Hello {name}", "b": "Only English"}', encoding="utf-8"
+    )
     t = Translator(tmp_path, "de")
     assert t.tr("a", name="X") == "Hallo X"
     assert t.tr("b") == "Only English"

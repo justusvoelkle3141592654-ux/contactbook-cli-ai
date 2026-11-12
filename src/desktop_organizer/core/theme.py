@@ -332,6 +332,16 @@ QListWidget::item {{ padding: 6px 8px; border-radius: 4px; }}
 QListWidget::item:selected {{ background: {t.selection}; color: {t.text}; }}
 QListWidget::item:hover {{ background: {t.card_hover}; }}
 QLineEdit[noteTitle="true"] {{ font-size: 20px; font-weight: 600; min-height: 42px; }}
+QPushButton#StatCell {{
+    background: {t.card};
+    border: 1px solid {t.card_border};
+    border-radius: 8px;
+    padding: 0;
+    min-height: 62px;
+    text-align: left;
+}}
+QPushButton#StatCell:hover {{ background: {t.card_hover}; }}
+QPushButton#StatCell:focus {{ border: 2px solid {t.accent}; padding: 0; min-height: 62px; }}
 QFrame#Divider {{ background: {t.divider}; max-height: 1px; min-height: 1px; border: none; }}
 QWidget#StatusLine {{ background: {t.layer}; border-top: 1px solid {t.card_border}; }}
 

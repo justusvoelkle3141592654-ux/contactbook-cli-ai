@@ -179,10 +179,14 @@ class RemindersWindow(ToolWindow):
         self.preset_button.setText(t("presets"))
         self.test_button.setText(t("test"))
         self.preset_menu.clear()
-        self.preset_menu.addAction(t("preset.break", minutes=self.option("break_interval_minutes")), self._preset_break)
+        self.preset_menu.addAction(
+            t("preset.break", minutes=self.option("break_interval_minutes")), self._preset_break
+        )
         self.preset_menu.addAction(t("preset.water"), self._preset_water)
         self.preset_menu.addAction(t("preset.stand"), self._preset_stand)
-        self.table.set_headers([t("col.title"), t("col.next"), t("col.recurrence"), t("col.active")])
+        self.table.set_headers(
+            [t("col.title"), t("col.next"), t("col.recurrence"), t("col.active")]
+        )
         self.empty.set_texts(t("empty.title"), t("empty.text"))
         self.hint.setText(t("hint"))
         self._background_notice()
@@ -194,8 +198,12 @@ class RemindersWindow(ToolWindow):
                 "warning",
                 t("background.off"),
                 t("background.enable"),
-                lambda: (self.context.settings.set("run_in_background", True), self.info.show_message("success", t("background.on"))),
+                self._enable_background,
             )
+
+    def _enable_background(self) -> None:
+        self.context.settings.set("run_in_background", True)
+        self.info.show_message("success", t("background.on"))
 
     def settings_changed(self) -> None:
         self.retranslate()
@@ -210,11 +218,17 @@ class RemindersWindow(ToolWindow):
             title = item(reminder.title, data=reminder.id)
             if reminder.message:
                 title.setToolTip(reminder.message)
-            active = item(t("active") if reminder.enabled else t("inactive"), sort=int(reminder.enabled))
+            active = item(
+                t("active") if reminder.enabled else t("inactive"), sort=int(reminder.enabled)
+            )
             active.setCheckable(True)
-            active.setCheckState(Qt.CheckState.Checked if reminder.enabled else Qt.CheckState.Unchecked)
+            active.setCheckState(
+                Qt.CheckState.Checked if reminder.enabled else Qt.CheckState.Unchecked
+            )
             next_text = format_datetime(reminder.due, lang) if reminder.enabled else "–"
-            self.table.source.appendRow([title, item(next_text, sort=reminder.due), item(describe(reminder)), active])
+            self.table.source.appendRow(
+                [title, item(next_text, sort=reminder.due), item(describe(reminder)), active]
+            )
         self.table.setSortingEnabled(True)
         self._filling = False
         self.table.setVisible(bool(reminders))
@@ -262,7 +276,11 @@ class RemindersWindow(ToolWindow):
         if reminder is None:
             return
         if self.option("confirm_delete") and not dialogs.confirm_destructive(
-            self, t("delete.title", name=reminder.title), t("delete.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("delete.title", name=reminder.title),
+            t("delete.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         delete(self.conn, reminder_id)
@@ -296,14 +314,27 @@ class RemindersWindow(ToolWindow):
             return
         tray = QSystemTrayIcon(self.windowIcon() or self.context.theme.icon("bell"), self)
         tray.show()
-        tray.showMessage(t("test.title"), t("test.message"), QSystemTrayIcon.MessageIcon.Information, 8000)
+        tray.showMessage(
+            t("test.title"), t("test.message"), QSystemTrayIcon.MessageIcon.Information, 8000
+        )
         QTimer.singleShot(10_000, tray.deleteLater)
 
     def screenshot_prepare(self) -> None:
         if not all_reminders(self.conn):
             now = datetime.now().replace(second=0, microsecond=0)
-            create(self.conn, t("preset.break.title"), (now + timedelta(minutes=35)).timestamp(), "minutes", 50, t("preset.break.message"))
-            create(self.conn, "Zahnarzttermin", (now + timedelta(days=2, hours=3)).timestamp(), "once")
-            create(self.conn, "Wochenbericht senden", (now + timedelta(days=4)).timestamp(), "weekly")
+            create(
+                self.conn,
+                t("preset.break.title"),
+                (now + timedelta(minutes=35)).timestamp(),
+                "minutes",
+                50,
+                t("preset.break.message"),
+            )
+            create(
+                self.conn, "Zahnarzttermin", (now + timedelta(days=2, hours=3)).timestamp(), "once"
+            )
+            create(
+                self.conn, "Wochenbericht senden", (now + timedelta(days=4)).timestamp(), "weekly"
+            )
             create(self.conn, "Pflanzen gießen", (now + timedelta(days=1)).timestamp(), "weekdays")
         self.refresh()

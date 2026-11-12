@@ -69,25 +69,25 @@ class TextReplacerWindow(ToolWindow):
             lambda p: context.settings.set_tool_value(TOOL, "last_folder", p)
         )
         self.find_label = QLabel()
-        self.find = QLineEdit()
+        self.find_field = QLineEdit()
         self.replace_label = QLabel()
-        self.replace = QLineEdit()
+        self.replace_field = QLineEdit()
         self.case = QCheckBox()
         self.word = QCheckBox()
         self.regex = QCheckBox()
         self.preview_button = QPushButton()
         self.preview_button.setProperty("role", "primary")
         self.preview_button.clicked.connect(self.create_preview)
-        self.find.returnPressed.connect(self.create_preview)
+        self.find_field.returnPressed.connect(self.create_preview)
 
         grid = QGridLayout()
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(8)
         grid.addWidget(self.folder, 0, 0, 1, 4)
         grid.addWidget(self.find_label, 1, 0)
-        grid.addWidget(self.find, 1, 1)
+        grid.addWidget(self.find_field, 1, 1)
         grid.addWidget(self.replace_label, 1, 2)
-        grid.addWidget(self.replace, 1, 3)
+        grid.addWidget(self.replace_field, 1, 3)
         options_row = QGridLayout()
         options_row.setHorizontalSpacing(24)
         options_row.addWidget(self.case, 0, 0)
@@ -139,8 +139,8 @@ class TextReplacerWindow(ToolWindow):
         self.folder.retranslate()
         self.find_label.setText(t("find"))
         self.replace_label.setText(t("replace"))
-        self.find.setPlaceholderText(t("find.placeholder"))
-        self.replace.setPlaceholderText(t("replace.placeholder"))
+        self.find_field.setPlaceholderText(t("find.placeholder"))
+        self.replace_field.setPlaceholderText(t("replace.placeholder"))
         self.case.setText(t("case"))
         self.word.setText(t("word"))
         self.regex.setText(t("regex"))
@@ -153,8 +153,8 @@ class TextReplacerWindow(ToolWindow):
     def _options(self) -> Options:
         opts = self.options()
         return Options(
-            find=self.find.text(),
-            replace=self.replace.text(),
+            find=self.find_field.text(),
+            replace=self.replace_field.text(),
             case_sensitive=self.case.isChecked(),
             whole_word=self.word.isChecked(),
             regex=self.regex.isChecked(),
@@ -175,7 +175,9 @@ class TextReplacerWindow(ToolWindow):
         try:
             compile_pattern(options)
         except (ValueError, re.error) as exc:
-            message = t("empty_search") if isinstance(exc, ValueError) else t("bad_regex", error=str(exc))
+            message = (
+                t("empty_search") if isinstance(exc, ValueError) else t("bad_regex", error=str(exc))
+            )
             self.info.show_message("error", message)
             return
 
@@ -232,20 +234,27 @@ class TextReplacerWindow(ToolWindow):
             return
         matches = self._matches(rows[0])
         tokens = self.context.theme.tokens
+        count = html.escape(t("details.count", count=matches.count))
+        mono = "font-family:Consolas,monospace"
         parts = [
             f"<p><b>{html.escape(matches.path.name)}</b> &nbsp; "
-            f"<span style='color:{tokens.text_secondary}'>{html.escape(t('details.count', count=matches.count))}</span></p>"
+            f"<span style='color:{tokens.text_secondary}'>{count}</span></p>"
         ]
         for change in matches.lines:
+            before = html.escape(change.before)
+            after = html.escape(change.after)
             parts.append(
                 "<table width='100%' cellspacing='0' cellpadding='4' style='margin-bottom:6px'>"
                 f"<tr><td width='48' style='color:{tokens.text_secondary}'>{change.number}</td>"
-                f"<td style='background:{tokens.error_subtle};font-family:Consolas,monospace'>− {html.escape(change.before)}</td></tr>"
-                f"<tr><td></td><td style='background:{tokens.success_subtle};font-family:Consolas,monospace'>+ {html.escape(change.after)}</td></tr>"
+                f"<td style='background:{tokens.error_subtle};{mono}'>− {before}</td></tr>"
+                "<tr><td></td>"
+                f"<td style='background:{tokens.success_subtle};{mono}'>+ {after}</td></tr>"
                 "</table>"
             )
         if matches.count > len(matches.lines):
-            parts.append(f"<p style='color:{tokens.text_secondary}'>{html.escape(t('details.more'))}</p>")
+            parts.append(
+                f"<p style='color:{tokens.text_secondary}'>{html.escape(t('details.more'))}</p>"
+            )
         self.details.setHtml("".join(parts))
 
     def replace_selected(self) -> None:
@@ -280,10 +289,13 @@ class TextReplacerWindow(ToolWindow):
             }
             reasons = ", ".join(f"{p.name} ({known.get(r, r)})" for p, r in result.failed[:4])
             self.info.show_message(
-                "warning", t("done.partial", files=result.files, count=result.replacements, failed=reasons)
+                "warning",
+                t("done.partial", files=result.files, count=result.replacements, failed=reasons),
             )
         else:
-            self.info.show_message("success", t("done", files=result.files, count=result.replacements))
+            self.info.show_message(
+                "success", t("done", files=result.files, count=result.replacements)
+            )
         self._preview = None
         self.files.clear_rows()
         self._update_footer()
@@ -293,7 +305,9 @@ class TextReplacerWindow(ToolWindow):
         journal = latest_journal(self.backup_root)
         if journal is None:
             return
-        if not dialogs.confirm(self, t("undo.title"), t("undo.body"), t("undo"), tr("common.cancel")):
+        if not dialogs.confirm(
+            self, t("undo.title"), t("undo.body"), t("undo"), tr("common.cancel")
+        ):
             return
         restored, failed = undo(journal)
         if failed:
@@ -321,7 +335,13 @@ class TextReplacerWindow(ToolWindow):
         self.undo_button.setEnabled(latest_journal(self.backup_root) is not None and not self.busy)
 
     def set_busy(self, busy: bool) -> None:
-        for widget in (self.folder, self.find, self.replace, self.preview_button, self.files):
+        for widget in (
+            self.folder,
+            self.find_field,
+            self.replace_field,
+            self.preview_button,
+            self.files,
+        ):
             widget.setEnabled(not busy)
         self._update_footer()
 
@@ -329,6 +349,6 @@ class TextReplacerWindow(ToolWindow):
         self._show_details()
 
     def screenshot_prepare(self) -> None:
-        self.find.setText("Notizen")
-        self.replace.setText("Notizbuch")
+        self.find_field.setText("Notizen")
+        self.replace_field.setText("Notizbuch")
         self.create_preview()

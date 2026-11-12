@@ -25,7 +25,8 @@ MIGRATIONS = (
             "CREATE VIRTUAL TABLE notes_fts USING fts5("
             " title, body, tags, content='notes', content_rowid='id', tokenize='unicode61')",
             "CREATE TRIGGER notes_ai AFTER INSERT ON notes BEGIN"
-            " INSERT INTO notes_fts(rowid, title, body, tags) VALUES (new.id, new.title, new.body, new.tags);"
+            " INSERT INTO notes_fts(rowid, title, body, tags)"
+            " VALUES (new.id, new.title, new.body, new.tags);"
             " END",
             "CREATE TRIGGER notes_ad AFTER DELETE ON notes BEGIN"
             " INSERT INTO notes_fts(notes_fts, rowid, title, body, tags)"
@@ -34,7 +35,8 @@ MIGRATIONS = (
             "CREATE TRIGGER notes_au AFTER UPDATE ON notes BEGIN"
             " INSERT INTO notes_fts(notes_fts, rowid, title, body, tags)"
             " VALUES ('delete', old.id, old.title, old.body, old.tags);"
-            " INSERT INTO notes_fts(rowid, title, body, tags) VALUES (new.id, new.title, new.body, new.tags);"
+            " INSERT INTO notes_fts(rowid, title, body, tags)"
+            " VALUES (new.id, new.title, new.body, new.tags);"
             " END",
         ),
     ),
@@ -82,7 +84,9 @@ def _row(row: sqlite3.Row) -> Note:
     )
 
 
-def create(conn: sqlite3.Connection, title: str = "", body: str = "", tags: list[str] | None = None) -> int:
+def create(
+    conn: sqlite3.Connection, title: str = "", body: str = "", tags: list[str] | None = None
+) -> int:
     now = time.time()
     cursor = conn.execute(
         "INSERT INTO notes (title, body, tags, created, updated) VALUES (?, ?, ?, ?, ?)",
@@ -118,7 +122,11 @@ def fts_query(text: str) -> str:
 
 
 def search(
-    conn: sqlite3.Connection, text: str = "", tag: str = "", sort: str = "updated", limit: int = 1000
+    conn: sqlite3.Connection,
+    text: str = "",
+    tag: str = "",
+    sort: str = "updated",
+    limit: int = 1000,
 ) -> list[Note]:
     order = SORTS.get(sort, SORTS["updated"])
     query = fts_query(text)

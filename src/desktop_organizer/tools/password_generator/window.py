@@ -60,7 +60,9 @@ class StrengthBar(QWidget):
 
     def paintEvent(self, _event: QPaintEvent) -> None:  # noqa: N802
         t_ = self._theme.tokens
-        color = {1: t_.error, 2: t_.error, 3: t_.warning, 4: t_.success, 5: t_.success}.get(self._level, t_.nav_selected)
+        color = {1: t_.error, 2: t_.error, 3: t_.warning, 4: t_.success, 5: t_.success}.get(
+            self._level, t_.nav_selected
+        )
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.setPen(Qt.PenStyle.NoPen)
@@ -143,25 +145,32 @@ class PasswordWindow(ToolWindow):
         length_row.addWidget(self.length_value)
         self.length_label = QLabel()
         form.addRow(self.length_label, length_row)
-        self.lower = QCheckBox()
-        self.upper = QCheckBox()
-        self.digits = QCheckBox()
-        self.symbols = QCheckBox()
-        self.ambiguous = QCheckBox()
+        self.lower_box = QCheckBox()
+        self.upper_box = QCheckBox()
+        self.digits_box = QCheckBox()
+        self.symbols_box = QCheckBox()
+        self.ambiguous_box = QCheckBox()
         self.require_each = QCheckBox()
-        for box in (self.lower, self.upper, self.digits, self.symbols, self.ambiguous, self.require_each):
+        for box in (
+            self.lower_box,
+            self.upper_box,
+            self.digits_box,
+            self.symbols_box,
+            self.ambiguous_box,
+            self.require_each,
+        ):
             box.setChecked(True)
             box.toggled.connect(lambda _v: self.generate())
         self.chars_label = QLabel()
         chars = QVBoxLayout()
         chars.setSpacing(8)
-        for box in (self.lower, self.upper, self.digits, self.symbols):
+        for box in (self.lower_box, self.upper_box, self.digits_box, self.symbols_box):
             chars.addWidget(box)
         form.addRow(self.chars_label, chars)
         self.rules_label = QLabel()
         rules = QVBoxLayout()
         rules.setSpacing(8)
-        rules.addWidget(self.ambiguous)
+        rules.addWidget(self.ambiguous_box)
         rules.addWidget(self.require_each)
         form.addRow(self.rules_label, rules)
 
@@ -236,11 +245,11 @@ class PasswordWindow(ToolWindow):
         self.length_label.setText(t("length"))
         self.chars_label.setText(t("characters"))
         self.rules_label.setText(t("rules"))
-        self.lower.setText(t("lower"))
-        self.upper.setText(t("upper"))
-        self.digits.setText(t("digits"))
-        self.symbols.setText(t("symbols"))
-        self.ambiguous.setText(t("ambiguous"))
+        self.lower_box.setText(t("lower"))
+        self.upper_box.setText(t("upper"))
+        self.digits_box.setText(t("digits"))
+        self.symbols_box.setText(t("symbols"))
+        self.ambiguous_box.setText(t("ambiguous"))
         self.require_each.setText(t("require_each"))
         self.words_label.setText(t("words"))
         self.separator_label.setText(t("separator"))
@@ -260,12 +269,12 @@ class PasswordWindow(ToolWindow):
     def _password_options(self) -> PasswordOptions:
         return PasswordOptions(
             length=self.length.value(),
-            lower=self.lower.isChecked(),
-            upper=self.upper.isChecked(),
-            digits=self.digits.isChecked(),
-            symbols=self.symbols.isChecked(),
+            lower=self.lower_box.isChecked(),
+            upper=self.upper_box.isChecked(),
+            digits=self.digits_box.isChecked(),
+            symbols=self.symbols_box.isChecked(),
             symbol_set=self.option("symbol_set"),
-            exclude_ambiguous=self.ambiguous.isChecked(),
+            exclude_ambiguous=self.ambiguous_box.isChecked(),
             require_each=self.require_each.isChecked(),
         )
 
@@ -319,11 +328,15 @@ class PasswordWindow(ToolWindow):
         self.strength_bar.set_level(level)
         unit, amount = crack_time_label(bits)
         duration = t(f"time.{unit}", amount=amount)
-        self.strength_label.setText(t("strength", level=t(f"level.{level}"), bits=int(bits), time=duration))
+        self.strength_label.setText(
+            t("strength", level=t(f"level.{level}"), bits=int(bits), time=duration)
+        )
 
     def _toggle_visible(self, visible: bool) -> None:
         self.show_button.setText(t("hide") if visible else t("show"))
-        self.result.setEchoMode(QLineEdit.EchoMode.Normal if visible else QLineEdit.EchoMode.Password)
+        self.result.setEchoMode(
+            QLineEdit.EchoMode.Normal if visible else QLineEdit.EchoMode.Password
+        )
 
     # -- clipboard ---------------------------------------------------------------------------
 

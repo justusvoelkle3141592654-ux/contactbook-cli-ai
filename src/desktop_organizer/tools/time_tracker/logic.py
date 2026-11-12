@@ -93,13 +93,17 @@ def delete_project(conn: sqlite3.Connection, project_id: int) -> None:
     conn.execute("DELETE FROM tt_projects WHERE id = ?", (project_id,))
 
 
-def _entries(conn: sqlite3.Connection, where: str = "1", params: tuple[object, ...] = ()) -> list[Entry]:
+def _entries(
+    conn: sqlite3.Connection, where: str = "1", params: tuple[object, ...] = ()
+) -> list[Entry]:
     rows = conn.execute(
         "SELECT e.*, p.name AS project FROM tt_entries e JOIN tt_projects p ON p.id = e.project_id"
         f" WHERE {where} ORDER BY e.start DESC",
         params,
     ).fetchall()
-    return [Entry(r["id"], r["project_id"], r["project"], r["note"], r["start"], r["end"]) for r in rows]
+    return [
+        Entry(r["id"], r["project_id"], r["project"], r["note"], r["start"], r["end"]) for r in rows
+    ]
 
 
 def get_entry(conn: sqlite3.Connection, entry_id: int) -> Entry | None:
@@ -112,7 +116,9 @@ def running(conn: sqlite3.Connection) -> Entry | None:
     return found[0] if found else None
 
 
-def start(conn: sqlite3.Connection, project_id: int, note: str = "", now: float | None = None) -> int:
+def start(
+    conn: sqlite3.Connection, project_id: int, note: str = "", now: float | None = None
+) -> int:
     now = time.time() if now is None else now
     stop(conn, now)
     cursor = conn.execute(
@@ -125,12 +131,16 @@ def stop(conn: sqlite3.Connection, now: float | None = None) -> Entry | None:
     now = time.time() if now is None else now
     current = running(conn)
     if current is not None:
-        conn.execute("UPDATE tt_entries SET end = ? WHERE id = ?", (max(now, current.start), current.id))
+        conn.execute(
+            "UPDATE tt_entries SET end = ? WHERE id = ?", (max(now, current.start), current.id)
+        )
         current.end = max(now, current.start)
     return current
 
 
-def add_entry(conn: sqlite3.Connection, project_id: int, begin: float, end: float, note: str = "") -> int:
+def add_entry(
+    conn: sqlite3.Connection, project_id: int, begin: float, end: float, note: str = ""
+) -> int:
     if end <= begin:
         raise ValueError("end before start")
     cursor = conn.execute(
@@ -140,7 +150,14 @@ def add_entry(conn: sqlite3.Connection, project_id: int, begin: float, end: floa
     return int(cursor.lastrowid or 0)
 
 
-def update_entry(conn: sqlite3.Connection, entry_id: int, project_id: int, begin: float, end: float | None, note: str) -> None:
+def update_entry(
+    conn: sqlite3.Connection,
+    entry_id: int,
+    project_id: int,
+    begin: float,
+    end: float | None,
+    note: str,
+) -> None:
     if end is not None and end <= begin:
         raise ValueError("end before start")
     conn.execute(
@@ -183,7 +200,9 @@ def week_days(any_day: date, week_start: str = "monday") -> list[date]:
     return [first + timedelta(days=i) for i in range(7)]
 
 
-def totals(conn: sqlite3.Connection, days: list[date], now: float | None = None) -> dict[str, dict[date, float]]:
+def totals(
+    conn: sqlite3.Connection, days: list[date], now: float | None = None
+) -> dict[str, dict[date, float]]:
     """project -> day -> seconds for the given days."""
     now = time.time() if now is None else now
     wanted = set(days)
@@ -213,7 +232,9 @@ def export_csv(entries: list[Entry], target: Path, now: float | None = None) -> 
                     entry.project,
                     entry.note,
                     datetime.fromtimestamp(entry.start).isoformat(timespec="minutes"),
-                    datetime.fromtimestamp(entry.end).isoformat(timespec="minutes") if entry.end else "",
+                    datetime.fromtimestamp(entry.end).isoformat(timespec="minutes")
+                    if entry.end
+                    else "",
                     f"{entry.duration(now) / 3600:.2f}",
                 ]
             )

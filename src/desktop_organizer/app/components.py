@@ -11,9 +11,9 @@ from typing import Any
 
 from PySide6.QtCore import (
     QModelIndex,
-    QRectF,
     QPoint,
     QProcess,
+    QRectF,
     QSortFilterProxyModel,
     Qt,
     QUrl,
@@ -471,7 +471,9 @@ SORT_ROLE = Qt.ItemDataRole.UserRole + 10
 DATA_ROLE = Qt.ItemDataRole.UserRole + 11
 
 
-def item(text: str, sort: object = None, data: object = None, checkable: bool = False) -> QStandardItem:
+def item(
+    text: str, sort: object = None, data: object = None, checkable: bool = False
+) -> QStandardItem:
     cell = QStandardItem(text)
     cell.setEditable(False)
     cell.setData(text.casefold() if sort is None else sort, SORT_ROLE)
@@ -576,7 +578,9 @@ class BarDelegate(QStyledItemDelegate):
         painter.setBrush(QColor(t.nav_selected))
         painter.drawRoundedRect(bar, 3, 3)
         painter.setBrush(QColor(t.accent))
-        painter.drawRoundedRect(QRectF(bar.x(), bar.y(), bar.width() * min(1.0, float(fraction)), 6), 3, 3)
+        painter.drawRoundedRect(
+            QRectF(bar.x(), bar.y(), bar.width() * min(1.0, float(fraction)), 6), 3, 3
+        )
         painter.setPen(QColor(t.text_secondary))
         painter.drawText(
             QRectF(rect.right() - text_width, rect.y(), text_width, rect.height()),

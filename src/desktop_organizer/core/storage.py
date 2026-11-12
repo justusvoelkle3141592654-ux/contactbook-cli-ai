@@ -107,7 +107,9 @@ class Database:
             applied.append(migration)
         return applied
 
-    def execute(self, sql: str, params: tuple[object, ...] | dict[str, object] = ()) -> sqlite3.Cursor:
+    def execute(
+        self, sql: str, params: tuple[object, ...] | dict[str, object] = ()
+    ) -> sqlite3.Cursor:
         return self._conn.execute(sql, params)
 
     def query(

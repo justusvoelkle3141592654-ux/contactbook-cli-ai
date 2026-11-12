@@ -66,9 +66,7 @@ class FileCleanerWindow(ToolWindow):
         self.filter.setMinimumWidth(200)
         self.filter.currentIndexChanged.connect(self._apply_filter)
         self.select_all = QPushButton()
-        self.select_all.clicked.connect(lambda: self.table.set_all_checked(True))
         self.select_none = QPushButton()
-        self.select_none.clicked.connect(lambda: self.table.set_all_checked(False))
         from PySide6.QtWidgets import QHBoxLayout
 
         row = QHBoxLayout()
@@ -85,6 +83,8 @@ class FileCleanerWindow(ToolWindow):
         self.table.setColumnWidth(3, 100)
         self.table.setColumnWidth(4, 150)
         self.table.context_requested.connect(self._context_menu)
+        self.select_all.clicked.connect(lambda: self.table.set_all_checked(True))
+        self.select_none.clicked.connect(lambda: self.table.set_all_checked(False))
         self.table.doubleClicked.connect(
             lambda index: open_file(str(self._move(self.table.source_row(index)).source))
         )
@@ -115,7 +115,9 @@ class FileCleanerWindow(ToolWindow):
         self.preview_button.setText(t("preview"))
         self.select_all.setText(tr("common.select_all"))
         self.select_none.setText(tr("common.select_none"))
-        self.table.set_headers([t("col.file"), t("col.category"), t("col.target"), t("col.size"), t("col.modified")])
+        self.table.set_headers(
+            [t("col.file"), t("col.category"), t("col.target"), t("col.size"), t("col.modified")]
+        )
         current = self.filter.currentData()
         self.filter.blockSignals(True)
         self.filter.clear()
@@ -233,7 +235,8 @@ class FileCleanerWindow(ToolWindow):
         if result.failed:
             names = ", ".join(p.name for p, _ in result.failed[:5])
             self.info.show_message(
-                "warning", t("moved_with_errors", moved=result.moved, failed=len(result.failed), names=names)
+                "warning",
+                t("moved_with_errors", moved=result.moved, failed=len(result.failed), names=names),
             )
         else:
             self.info.show_message(
@@ -259,7 +262,8 @@ class FileCleanerWindow(ToolWindow):
     def _undone(self, result: Any) -> None:
         if result.failed:
             self.info.show_message(
-                "warning", t("undone_with_errors", restored=result.restored, failed=len(result.failed))
+                "warning",
+                t("undone_with_errors", restored=result.restored, failed=len(result.failed)),
             )
         else:
             self.info.show_message("success", t("undone", count=result.restored))
@@ -312,5 +316,3 @@ class FileCleanerWindow(ToolWindow):
         """Used by build/screenshots_tools.py to show a filled window."""
         self.context.settings.set_tool_value(TOOL, "skip_recent_minutes", 0)
         self.create_preview()
-
-

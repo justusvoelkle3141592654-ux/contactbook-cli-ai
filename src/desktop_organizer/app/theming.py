@@ -66,9 +66,7 @@ class ThemeManager(QObject):
         hints.setColorScheme(requested)
         self._tokens = tokens_for(self._is_dark())
         self._app.setPalette(_palette(self._tokens))
-        self._app.setStyleSheet(
-            build_stylesheet(self._tokens) + _image_rules(self._tokens)
-        )
+        self._app.setStyleSheet(build_stylesheet(self._tokens) + _image_rules(self._tokens))
         tinted_icon.cache_clear()
         self.changed.emit()
 
@@ -101,7 +99,9 @@ def _icon_file(name: str, color: str, stroke: str | None = None) -> str:
 def _image_rules(t: Tokens) -> str:
     arrow = _icon_file("chevron-down", t.text_secondary)
     check = _icon_file("check", t.on_accent, stroke="3")
-    indicator = "QCheckBox::indicator, QTableView::indicator, QTreeView::indicator, QListView::indicator"
+    indicator = (
+        "QCheckBox::indicator, QTableView::indicator, QTreeView::indicator, QListView::indicator"
+    )
     return f"""
 QComboBox::down-arrow {{ image: url({arrow}); width: 16px; height: 16px; }}
 QComboBox::drop-down {{

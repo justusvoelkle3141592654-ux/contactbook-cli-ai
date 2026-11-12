@@ -75,7 +75,9 @@ def test_rules_keep_exactly_one(tree: Path) -> None:
     assert [p.name for p in keep_newest] == ["photo.jpg"] and "deep" in str(next(iter(keep_newest)))
     keep_oldest = {e.path for e in group.files} - {e.path for e in files_to_remove(group, "oldest")}
     assert next(iter(keep_oldest)).parent.name == "a"
-    keep_first = {e.path for e in group.files} - {e.path for e in files_to_remove(group, "first_folder")}
+    keep_first = {e.path for e in group.files} - {
+        e.path for e in files_to_remove(group, "first_folder")
+    }
     assert next(iter(keep_first)).parent.name == "a"
     for rule in ("shortest_path", "longest_path"):
         assert len(files_to_remove(group, rule)) == 2

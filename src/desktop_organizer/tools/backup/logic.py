@@ -92,13 +92,18 @@ def _hidden(name: str, st: os.stat_result) -> bool:
     return name.startswith(".") or bool(attributes & stat.FILE_ATTRIBUTE_HIDDEN)
 
 
-def _walk(root: Path, options: Options, errors: list[tuple[Path, str]]) -> dict[str, os.stat_result]:
+def _walk(
+    root: Path, options: Options, errors: list[tuple[Path, str]]
+) -> dict[str, os.stat_result]:
     """Relative path -> stat for every file below root."""
     found: dict[str, os.stat_result] = {}
     stack = [root]
     while stack:
         folder = stack.pop()
-        if safety.classify(str(folder)) in (safety.PathVerdict.SYSTEM, safety.PathVerdict.OTHER_USER):
+        if safety.classify(str(folder)) in (
+            safety.PathVerdict.SYSTEM,
+            safety.PathVerdict.OTHER_USER,
+        ):
             continue
         try:
             entries = list(os.scandir(folder))
@@ -122,11 +127,15 @@ def _walk(root: Path, options: Options, errors: list[tuple[Path, str]]) -> dict[
     return found
 
 
-def make_plan(sources: list[Path], destination: Path, options: Options, job: Job | None = None) -> BackupPlan:
+def make_plan(
+    sources: list[Path], destination: Path, options: Options, job: Job | None = None
+) -> BackupPlan:
     job = job or Job()
     validate(sources, destination)
     plan = BackupPlan()
-    for index, (source, target_root) in enumerate(zip(sources, target_folders(sources, destination), strict=True)):
+    for index, (source, target_root) in enumerate(
+        zip(sources, target_folders(sources, destination), strict=True)
+    ):
         job.progress(index, len(sources), str(source))
         source_files = _walk(source, options, plan.errors)
         target_files = _walk(target_root, options, []) if target_root.exists() else {}
@@ -137,7 +146,10 @@ def make_plan(sources: list[Path], destination: Path, options: Options, job: Job
             target = target_root / relative
             if existing is None:
                 plan.copies.append(Copy(source / relative, target, st.st_size, "new"))
-            elif existing.st_size != st.st_size or abs(existing.st_mtime - st.st_mtime) > MTIME_TOLERANCE:
+            elif (
+                existing.st_size != st.st_size
+                or abs(existing.st_mtime - st.st_mtime) > MTIME_TOLERANCE
+            ):
                 plan.copies.append(Copy(source / relative, target, st.st_size, "changed"))
             else:
                 plan.unchanged += 1
@@ -220,7 +232,9 @@ def run(plan: BackupPlan, options: Options, job: Job | None = None) -> RunResult
     return result
 
 
-def save_history(history_file: Path, profile: str, destination: Path, result: RunResult, log_dir: Path) -> Path:
+def save_history(
+    history_file: Path, profile: str, destination: Path, result: RunResult, log_dir: Path
+) -> Path:
     """Append a summary to the history file and write the full log; returns the log path."""
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{time.strftime('%Y%m%d-%H%M%S', time.localtime(result.started))}.log"

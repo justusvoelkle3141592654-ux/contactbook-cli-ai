@@ -49,7 +49,7 @@ def test_pinned_first_and_tags(conn: sqlite3.Connection) -> None:
 
 
 def test_query_is_safe_for_special_characters(conn: sqlite3.Connection) -> None:
-    create(conn, "C++ und \"Zitate\"", "a AND b OR (c)")
+    create(conn, 'C++ und "Zitate"', "a AND b OR (c)")
     assert fts_query('"AND" OR (') == '"AND"* "OR"*'
     assert len(search(conn, 'and (c) "zitate')) == 1
 

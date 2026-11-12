@@ -11,6 +11,7 @@ dynamic = ["version"]
 dependencies = [
     "PySide6-Essentials==6.8.1",
     "psutil==6.1.1",
+    "Send2Trash==1.8.3",
 ]
 
 [project.gui-scripts]
@@ -32,17 +33,27 @@ src = ["src", "tests", "build"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "RUF", "PTH"]
-ignore = ["RUF001", "RUF003"]  # typographic quotes in strings are intentional
+ignore = [
+    "RUF001", "RUF003",  # typographic quotes in strings are intentional
+    "PTH100", "PTH104", "PTH105", "PTH107",  # os.rename/os.replace: explicit no-overwrite semantics
+    "N818",  # Cancelled reads better than CancelledError at call sites
+    "SIM105", "SIM108",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+"build/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
+platform = "win32"  # the product targets Windows; Windows-only APIs are type-checked as such
 mypy_path = "src"
 packages = ["desktop_organizer"]
 strict = true
 warn_unused_ignores = false
 
 [[tool.mypy.overrides]]
-module = ["psutil", "psutil.*"]
+module = ["psutil", "psutil.*", "send2trash", "send2trash.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -391,3 +391,62 @@ class SearchField(QLineEdit):
         if event.type() == QEvent.Type.FontChange:
             self._place_hint()
         return super().event(event)
+
+
+class ToggleSwitch(KeyboardFocusMixin, QAbstractButton):
+    """Windows 11 style on/off switch with an "On"/"Off" label to its left."""
+
+    def __init__(self, theme: ThemeManager, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._theme = theme
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover)
+        self._labels = ("", "")
+        self.toggled.connect(lambda _c: self.update())
+
+    def set_labels(self, off: str, on: str) -> None:
+        self._labels = (off, on)
+        self.updateGeometry()
+        self.update()
+
+    def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802
+        self._track_focus_in(event)
+        super().focusInEvent(event)
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        fm = QFontMetrics(_font(self.font(), 14))
+        text = max(fm.horizontalAdvance(self._labels[0]), fm.horizontalAdvance(self._labels[1]))
+        return QSize(40 + (text + 12 if text else 0), 28)
+
+    def paintEvent(self, _event: QPaintEvent) -> None:  # noqa: N802
+        t = self._theme.tokens
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        track = QRectF(self.width() - 40, (self.height() - 20) / 2, 40, 20)
+        on = self.isChecked()
+        if on:
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(t.accent_hover if self.underMouse() else t.accent))
+        else:
+            p.setPen(QPen(QColor(t.text_secondary), 1))
+            p.setBrush(QColor(t.surface_alt if self.underMouse() else t.surface))
+        p.drawRoundedRect(track.adjusted(0.5, 0.5, -0.5, -0.5), 10, 10)
+        knob = 12 if on else 10
+        cx = track.right() - 10 if on else track.left() + 10
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(QColor(t.on_accent if on else t.text_secondary))
+        p.drawEllipse(QRectF(cx - knob / 2, track.center().y() - knob / 2, knob, knob))
+        if self.show_focus_ring():
+            _focus_ring(p, track.adjusted(-3, -3, 3, 3), t, 13)
+        label = self._labels[1 if on else 0]
+        if label:
+            p.setFont(_font(self.font(), 14))
+            p.setPen(QColor(t.text if self.isEnabled() else t.text_disabled))
+            p.drawText(
+                QRect(0, 0, int(track.left()) - 12, self.height()),
+                Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight,
+                label,
+            )
+        p.end()

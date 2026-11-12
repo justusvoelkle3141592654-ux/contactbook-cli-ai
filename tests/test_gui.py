@@ -31,7 +31,11 @@ def context(theme: object, tmp_path: Path, translator: Translator) -> Iterator[o
     settings.load()
     db = Database(paths.database_file)
     theme.set_mode("light")  # type: ignore[attr-defined]
-    yield AppContext(paths, settings, translator, db, theme, str(paths.log_dir / "x.log"))  # type: ignore[arg-type]
+    from desktop_organizer.tools.registry import all_migrations
+
+    tools = all_tools()
+    db.migrate(all_migrations(tools))
+    yield AppContext(paths, settings, translator, db, theme, str(paths.log_dir / "x.log"), tools)  # type: ignore[arg-type]
     db.close()
 
 
@@ -103,14 +107,47 @@ def test_category_navigation_filters_tools(context: object) -> None:
     window.close()
 
 
-def test_unavailable_tools_do_not_open_windows(context: object) -> None:
+def test_cards_launch_tools_as_separate_processes(context: object, monkeypatch: object) -> None:
+    from desktop_organizer.app import launcher
     from desktop_organizer.app.overview import OverviewWindow
 
+    started: list[tuple[str, object]] = []
+    monkeypatch.setattr(
+        launcher, "launch_tool", lambda tool, extra=None: started.append((tool, extra)) or True
+    )  # type: ignore[attr-defined]
     window = OverviewWindow(context, all_tools())  # type: ignore[arg-type]
     cards = window.tools_page.cards()
-    assert cards and not any(card.available for card in cards)
+    assert cards and all(card.available for card in cards)
     cards[0].click()
-    assert window._open_windows == {}
+    assert started == [("file_cleaner", None)]
+    assert context.settings.get("recent_tools")[0] == "file_cleaner"  # type: ignore[attr-defined]
+    window.close()
+
+
+def test_launch_command_uses_tool_argument() -> None:
+    from desktop_organizer.app.launcher import command
+
+    program, args = command("notes", ["--message", "new"])
+    assert args[-4:] == ["--tool", "notes", "--message", "new"]
+
+
+def test_settings_page_lists_every_tool(context: object) -> None:
+    from desktop_organizer.app.settings_page import SettingsPage
+
+    page = SettingsPage(context)  # type: ignore[arg-type]
+    assert len(page.tool_cards) == len(all_tools())
+    page.background_switch.click()
+    assert context.settings.get("run_in_background") is True  # type: ignore[attr-defined]
+    page.background_switch.click()
+
+
+@pytest.mark.parametrize("tool_id", [s.id for s in all_tools()])
+def test_every_tool_window_opens(context: object, tool_id: str) -> None:
+    spec = next(s for s in all_tools() if s.id == tool_id)
+    assert spec.factory is not None
+    window = spec.factory(context)  # type: ignore[arg-type]
+    window.show()
+    assert callable(window.open_settings)
     window.close()
 
 

@@ -113,8 +113,12 @@ class FileSizeWindow(ToolWindow):
         self.tabs.setTabText(0, t("tab.folders"))
         self.tabs.setTabText(1, t("tab.files"))
         self.tabs.setTabText(2, t("tab.types"))
-        self.folders_table.set_headers([t("col.name"), t("col.size"), t("col.share"), t("col.files"), t("col.modified")])
-        self.files_table.set_headers([t("col.file"), t("col.size"), t("col.modified"), t("col.folder")])
+        self.folders_table.set_headers(
+            [t("col.name"), t("col.size"), t("col.share"), t("col.files"), t("col.modified")]
+        )
+        self.files_table.set_headers(
+            [t("col.file"), t("col.size"), t("col.modified"), t("col.folder")]
+        )
         self.types_table.set_headers([t("col.type"), t("col.count"), t("col.size"), t("col.share")])
         self.hint.setText(t("hint"))
         self._show()
@@ -180,7 +184,10 @@ class FileSizeWindow(ToolWindow):
                     item(format_bytes(child.size, lang), sort=child.size),
                     share,
                     item(format_number(child.files, lang), sort=child.files),
-                    item(format_datetime(child.modified, lang) if child.modified else "", sort=child.modified),
+                    item(
+                        format_datetime(child.modified, lang) if child.modified else "",
+                        sort=child.modified,
+                    ),
                 ]
             )
         if self.option("show_files_entry") and node.own_files_size:
@@ -260,7 +267,12 @@ class FileSizeWindow(ToolWindow):
         if path == FILES_ENTRY:
             return
         menu = QMenu(self)
-        menu.addAction(t("open_folder"), lambda: self._open_row(self.folders_table.proxy.mapFromSource(self.folders_table.source.index(row, 0))))
+        menu.addAction(
+            t("open_folder"),
+            lambda: self._open_row(
+                self.folders_table.proxy.mapFromSource(self.folders_table.source.index(row, 0))
+            ),
+        )
         menu.addAction(tr("common.show_in_explorer"), lambda: show_in_explorer(path))
         menu.addAction(tr("common.copy_path"), lambda: copy_text(path))
         menu.exec(pos)

@@ -72,7 +72,9 @@ def password_entropy(options: PasswordOptions) -> float:
 
 @lru_cache(maxsize=4)
 def wordlist(language: str) -> tuple[str, ...]:
-    path: Path = resources_dir() / "wordlists" / f"{language if language in ('de', 'en') else 'en'}.txt"
+    path: Path = (
+        resources_dir() / "wordlists" / f"{language if language in ('de', 'en') else 'en'}.txt"
+    )
     words = tuple(w.strip() for w in path.read_text(encoding="utf-8").splitlines() if w.strip())
     return tuple(dict.fromkeys(words))
 

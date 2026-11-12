@@ -66,7 +66,10 @@ def analyze(
             node.modified = max([node.modified, *(c.modified for c in node.children)])
             continue
         stack.append((node, True))
-        if safety.classify(str(node.path)) in (safety.PathVerdict.SYSTEM, safety.PathVerdict.OTHER_USER):
+        if safety.classify(str(node.path)) in (
+            safety.PathVerdict.SYSTEM,
+            safety.PathVerdict.OTHER_USER,
+        ):
             errors += 1
             continue
         try:

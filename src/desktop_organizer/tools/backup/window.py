@@ -172,7 +172,15 @@ class BackupWindow(ToolWindow):
     def _fill_profiles(self, select_id: str | None = None) -> None:
         profiles = self._stored_profiles()
         if not profiles:
-            profiles = [{"id": uuid.uuid4().hex, "name": t("default_profile"), "sources": [], "destination": "", "mode": "update"}]
+            profiles = [
+                {
+                    "id": uuid.uuid4().hex,
+                    "name": t("default_profile"),
+                    "sources": [],
+                    "destination": "",
+                    "mode": "update",
+                }
+            ]
             self._store_profiles(profiles)
         self._loading = True
         self.profiles.clear()
@@ -228,28 +236,44 @@ class BackupWindow(ToolWindow):
         name, ok = QInputDialog.getText(self, t("new_profile"), t("profile_name"))
         if not ok or not name.strip():
             return
-        profile = {"id": uuid.uuid4().hex, "name": name.strip(), "sources": [], "destination": "", "mode": "update"}
+        profile = {
+            "id": uuid.uuid4().hex,
+            "name": name.strip(),
+            "sources": [],
+            "destination": "",
+            "mode": "update",
+        }
         self._store_profiles([*self._stored_profiles(), profile])
-        self._fill_profiles(profile["id"])
+        self._fill_profiles(str(profile["id"]))
 
     def rename_profile(self) -> None:
         profile = self._current_profile()
         if profile is None:
             return
-        name, ok = QInputDialog.getText(self, t("rename_profile"), t("profile_name"), QLineEdit.EchoMode.Normal, str(profile["name"]))
+        name, ok = QInputDialog.getText(
+            self,
+            t("rename_profile"),
+            t("profile_name"),
+            QLineEdit.EchoMode.Normal,
+            str(profile["name"]),
+        )
         if not ok or not name.strip():
             return
         profiles = self._stored_profiles()
         profiles[self.profiles.currentRow()]["name"] = name.strip()
         self._store_profiles(profiles)
-        self._fill_profiles(profile["id"])
+        self._fill_profiles(str(profile["id"]))
 
     def delete_profile(self) -> None:
         profile = self._current_profile()
         if profile is None:
             return
         if not dialogs.confirm_destructive(
-            self, t("delete_profile.title", name=profile["name"]), t("delete_profile.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("delete_profile.title", name=profile["name"]),
+            t("delete_profile.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         profiles = [p for p in self._stored_profiles() if p.get("id") != profile.get("id")]
@@ -278,8 +302,18 @@ class BackupWindow(ToolWindow):
         self.tabs.setTabText(0, t("tab.preview"))
         self.tabs.setTabText(1, t("tab.log"))
         self.tabs.setTabText(2, t("tab.history"))
-        self.preview_table.set_headers([t("col.file"), t("col.action"), t("col.size"), t("col.target")])
-        self.history_table.set_headers([t("col.time"), t("col.profile"), t("col.copied"), t("col.result"), t("col.destination")])
+        self.preview_table.set_headers(
+            [t("col.file"), t("col.action"), t("col.size"), t("col.target")]
+        )
+        self.history_table.set_headers(
+            [
+                t("col.time"),
+                t("col.profile"),
+                t("col.copied"),
+                t("col.result"),
+                t("col.destination"),
+            ]
+        )
         self.preview_button.setText(t("preview"))
         self.start_button.setText(t("start"))
         self._update_mode_hint()
@@ -345,7 +379,14 @@ class BackupWindow(ToolWindow):
                 ]
             )
         for path in plan.deletions[:20000]:
-            table.source.appendRow([item(path.name), item(t("action.remove")), item("", sort=0), item(str(path.parent))])
+            table.source.appendRow(
+                [
+                    item(path.name),
+                    item(t("action.remove")),
+                    item("", sort=0),
+                    item(str(path.parent)),
+                ]
+            )
         table.setSortingEnabled(True)
         self.tabs.setCurrentIndex(0)
         if plan.errors:
@@ -366,12 +407,16 @@ class BackupWindow(ToolWindow):
         plan = self._plan
         if plan is None or (not plan.copies and not plan.deletions):
             return
-        if plan.deletions and self.option("confirm_mirror") and not dialogs.confirm_destructive(
-            self,
-            t("mirror.title", count=len(plan.deletions)),
-            t("mirror.body", count=len(plan.deletions)),
-            t("mirror.ok"),
-            tr("common.cancel"),
+        if (
+            plan.deletions
+            and self.option("confirm_mirror")
+            and not dialogs.confirm_destructive(
+                self,
+                t("mirror.title", count=len(plan.deletions)),
+                t("mirror.body", count=len(plan.deletions)),
+                t("mirror.ok"),
+                tr("common.cancel"),
+            )
         ):
             return
         options = self._options()
@@ -383,18 +428,31 @@ class BackupWindow(ToolWindow):
 
         def done(result: Any) -> None:
             assert isinstance(result, RunResult)
-            log_path = save_history(self.history_file, str(profile.get("name", "")), destination, result, self.log_dir)
+            log_path = save_history(
+                self.history_file, str(profile.get("name", "")), destination, result, self.log_dir
+            )
             self.log_view.setPlainText(log_path.read_text(encoding="utf-8"))
             self.tabs.setCurrentIndex(1)
             lang = self.context.translator.language
             if result.ok:
                 self.info.show_message(
                     "success",
-                    t("done", copied=format_number(result.copied, lang), size=format_bytes(result.copied_bytes, lang), verified=result.verified),
+                    t(
+                        "done",
+                        copied=format_number(result.copied, lang),
+                        size=format_bytes(result.copied_bytes, lang),
+                        verified=result.verified,
+                    ),
                 )
             else:
                 self.info.show_message(
-                    "warning", t("done.errors", copied=result.copied, failed=len(result.failed), verify=len(result.verify_failed))
+                    "warning",
+                    t(
+                        "done.errors",
+                        copied=result.copied,
+                        failed=len(result.failed),
+                        verify=len(result.verify_failed),
+                    ),
                 )
             self._plan = None
             self.preview_table.clear_rows()
@@ -411,13 +469,19 @@ class BackupWindow(ToolWindow):
         table.setSortingEnabled(False)
         table.clear_rows()
         for entry in load_history(self.history_file):
-            started = float(entry.get("started", 0) or 0)
-            errors = int(entry.get("errors", 0) or 0)
+            started = float(str(entry.get("started", 0) or 0))
+            errors = int(str(entry.get("errors", 0) or 0))
             table.source.appendRow(
                 [
                     item(format_datetime(started, lang), sort=started, data=entry.get("log")),
                     item(str(entry.get("profile", ""))),
-                    item(t("history.copied", count=entry.get("copied", 0), size=format_bytes(int(entry.get("bytes", 0) or 0), lang))),
+                    item(
+                        t(
+                            "history.copied",
+                            count=entry.get("copied", 0),
+                            size=format_bytes(int(str(entry.get("bytes", 0) or 0)), lang),
+                        )
+                    ),
                     item(t("history.ok") if errors == 0 else t("history.errors", count=errors)),
                     item(str(entry.get("destination", ""))),
                 ]
@@ -427,7 +491,9 @@ class BackupWindow(ToolWindow):
     def _open_history_log(self, index: Any) -> None:
         from desktop_organizer.app.components import DATA_ROLE
 
-        log = self.history_table.source.item(self.history_table.source_row(index), 0).data(DATA_ROLE)
+        log = self.history_table.source.item(self.history_table.source_row(index), 0).data(
+            DATA_ROLE
+        )
         if isinstance(log, str) and Path(log).exists():
             open_file(log)
 
@@ -450,7 +516,15 @@ class BackupWindow(ToolWindow):
         self.start_button.setEnabled(ready)
 
     def set_busy(self, busy: bool) -> None:
-        for widget in (self.profiles, self.sources, self.destination, self.mode, self.new_button, self.rename_button, self.delete_button):
+        for widget in (
+            self.profiles,
+            self.sources,
+            self.destination,
+            self.mode,
+            self.new_button,
+            self.rename_button,
+            self.delete_button,
+        ):
             widget.setEnabled(not busy)
         self._update_footer()
 

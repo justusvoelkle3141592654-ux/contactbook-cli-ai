@@ -13,7 +13,10 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QListWidget,
+    QListWidgetItem,
     QMainWindow,
+    QPushButton,
     QScrollArea,
     QStackedWidget,
     QVBoxLayout,
@@ -26,7 +29,12 @@ from desktop_organizer.app.context import AppContext
 from desktop_organizer.app.settings_page import SettingsPage
 from desktop_organizer.app.widgets import Meter, NavButton, SearchField, ToolCard
 from desktop_organizer.core import system_info
-from desktop_organizer.core.formatting import format_bytes, format_percent
+from desktop_organizer.core.formatting import (
+    format_bytes,
+    format_datetime,
+    format_duration,
+    format_percent,
+)
 from desktop_organizer.core.i18n import tr
 from desktop_organizer.core.paths import resources_dir
 from desktop_organizer.tools.registry import CATEGORY_ORDER, Category, ToolSpec
@@ -50,6 +58,48 @@ def page_layout(widget: QWidget) -> QVBoxLayout:
     layout.setContentsMargins(32, 28, 32, 24)
     layout.setSpacing(4)
     return layout
+
+
+class StatCell(QPushButton):
+    """Small clickable summary: caption on top, value below."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setObjectName("StatCell")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.caption = QLabel()
+        self.caption.setProperty("textStyle", "caption")
+        self.value = QLabel()
+        self.value.setProperty("textStyle", "cardTitle")
+        self.value.setMinimumWidth(0)
+        for label in (self.caption, self.value):
+            label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+        column = QVBoxLayout(self)
+        column.setContentsMargins(16, 10, 16, 10)
+        column.setSpacing(2)
+        column.addWidget(self.caption)
+        column.addWidget(self.value)
+        self.setMinimumHeight(64)
+
+    def set_texts(self, caption: str, value: str) -> None:
+        self.caption.setText(caption)
+        self._full_value = value
+        self.setToolTip(value)
+        self.setAccessibleName(f"{caption}: {value}")
+        self._elide()
+
+    def resizeEvent(self, event: object) -> None:  # noqa: N802
+        super().resizeEvent(event)  # type: ignore[arg-type]
+        self._elide()
+
+    def _elide(self) -> None:
+        from PySide6.QtGui import QFontMetrics
+
+        text = getattr(self, "_full_value", "")
+        width = max(20, self.width() - 32)
+        self.value.setText(
+            QFontMetrics(self.value.font()).elidedText(text, Qt.TextElideMode.ElideRight, width)
+        )
 
 
 class ToolsPage(QWidget):
@@ -91,6 +141,34 @@ class ToolsPage(QWidget):
         self.grid.setHorizontalSpacing(8)
         self.grid.setVerticalSpacing(8)
 
+        self.summary = QWidget()
+        self.summary.setObjectName("PageBody")
+        summary_row = QHBoxLayout(self.summary)
+        summary_row.setContentsMargins(0, 0, 0, 12)
+        summary_row.setSpacing(8)
+        self.stat_tasks = StatCell()
+        self.stat_reminder = StatCell()
+        self.stat_timer = StatCell()
+        self.stat_notes = StatCell()
+        for cell, tool in (
+            (self.stat_tasks, "tasks"),
+            (self.stat_reminder, "reminders"),
+            (self.stat_timer, "time_tracker"),
+            (self.stat_notes, "notes"),
+        ):
+            cell.clicked.connect(lambda _=False, t=tool: self._open_by_id(t))
+            summary_row.addWidget(cell, 1)
+        self._summary_timer = QTimer(self)
+        self._summary_timer.timeout.connect(self.refresh_summary)
+        self._summary_timer.start(30_000)
+
+        self.notes_label = QLabel()
+        self.notes_label.setProperty("textStyle", "section")
+        self.notes_list = QListWidget()
+        self.notes_list.setMaximumHeight(200)
+        self.notes_list.itemActivated.connect(self._open_note)
+        self.notes_list.itemClicked.connect(self._open_note)
+
         self.empty = QLabel()
         self.empty.setProperty("textStyle", "empty")
         self.empty.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
@@ -100,7 +178,11 @@ class ToolsPage(QWidget):
         body.setObjectName("PageBody")
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.addWidget(self.summary)
         body_layout.addWidget(self.grid_host)
+        body_layout.addSpacing(16)
+        body_layout.addWidget(self.notes_label)
+        body_layout.addWidget(self.notes_list)
         body_layout.addWidget(self.empty)
         body_layout.addStretch(1)
 
@@ -157,8 +239,93 @@ class ToolsPage(QWidget):
 
     # -- grid ----------------------------------------------------------------------------
 
+    def _open_by_id(self, tool_id: str) -> None:
+        spec = next((s for s in self._tools if s.id == tool_id), None)
+        if spec is not None:
+            self._open_tool(spec)  # type: ignore[operator]
+
+    def _open_note(self, entry: QListWidgetItem) -> None:
+        from desktop_organizer.app import launcher
+
+        launcher.launch_tool("notes", ["--message", f"open:{entry.data(Qt.ItemDataRole.UserRole)}"])
+
+    def refresh_summary(self) -> None:
+        """Today strip: open tasks, next reminder, running timer, number of notes."""
+        lang = self._context.translator.language
+        conn = self._context.database.connection
+        try:
+            from desktop_organizer.tools.reminders.logic import next_upcoming
+            from desktop_organizer.tools.tasks.logic import counts
+            from desktop_organizer.tools.time_tracker.logic import running
+
+            task_counts = counts(conn)
+            reminder = next_upcoming(conn)
+            timer = running(conn)
+            notes = conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0]
+        except Exception:  # noqa: BLE001 - e.g. database closed after "Delete all data"
+            return
+        self.stat_tasks.set_texts(
+            tr("overview.today.tasks"),
+            tr("overview.today.tasks.value", open=task_counts["open"], today=task_counts["today"]),
+        )
+        self.stat_reminder.set_texts(
+            tr("overview.today.reminder"),
+            f"{self._short_time(reminder.due, lang)} · {reminder.title}"
+            if reminder
+            else tr("overview.today.none"),
+        )
+        self.stat_timer.set_texts(
+            tr("overview.today.timer"),
+            tr(
+                "overview.today.timer.running",
+                project=timer.project,
+                elapsed=format_duration(timer.duration()),
+            )
+            if timer
+            else tr("overview.today.timer.idle"),
+        )
+        self.stat_notes.set_texts(
+            tr("overview.today.notes"), tr("overview.today.notes.value", count=notes)
+        )
+
+    @staticmethod
+    def _short_time(timestamp: float, lang: str) -> str:
+        from datetime import date, datetime
+
+        moment = datetime.fromtimestamp(timestamp)
+        if moment.date() == date.today():
+            return moment.strftime("%H:%M")
+        return format_datetime(timestamp, lang)
+
+    def _search_notes(self, query: str) -> None:
+        self.notes_list.clear()
+        found = []
+        if query:
+            try:
+                from desktop_organizer.tools.notes.logic import search
+
+                found = search(self._context.database.connection, query, limit=6)
+            except Exception:  # noqa: BLE001
+                found = []
+        for note in found:
+            entry = QListWidgetItem(
+                self._context.theme.icon("notebook-pen", secondary=True), note.display_title or "…"
+            )
+            entry.setData(Qt.ItemDataRole.UserRole, note.id)
+            entry.setToolTip(tr("overview.note_open"))
+            self.notes_list.addItem(entry)
+        self.notes_label.setText(tr("overview.notes_results"))
+        self.notes_label.setVisible(bool(found))
+        self.notes_list.setVisible(bool(found))
+        self.notes_list.setFixedHeight(min(200, 40 * len(found) + 8))
+
     def rebuild(self) -> None:
         self._update_heading()
+        query = self.search.text().strip()
+        self.summary.setVisible(self._category == ALL and not query)
+        if self.summary.isVisibleTo(self):
+            self.refresh_summary()
+        self._search_notes(query)
         focused = next((c.property("toolId") for c in self._cards if c.hasFocus()), None)
         for card in self._cards:
             # Hide and detach at once; deleteLater alone leaves old cards painted
@@ -193,7 +360,7 @@ class ToolsPage(QWidget):
             if spec.id == focused:
                 QTimer.singleShot(0, card.setFocus)
         self.empty.setText(tr("overview.empty", query=self.search.text().strip()))
-        self.empty.setVisible(not self._cards)
+        self.empty.setVisible(not self._cards and not self.notes_list.count())
         self._columns = 0
         self._layout_grid()
 
@@ -501,6 +668,13 @@ class OverviewWindow(QMainWindow):
         geometry = dict(self._context.settings.get("window_geometry"))
         geometry["overview"] = bytes(self.saveGeometry().toBase64().data()).decode("ascii")
         self._context.settings.set("window_geometry", geometry)
+        services = self.services
+        if self._context.settings.get("run_in_background") and services is not None:
+            # Keep running in the notification area (reminders, clipboard, shortcuts).
+            event.ignore()
+            self.hide()
+            services.window_closed_to_background()  # type: ignore[attr-defined]
+            return
         self._timer.stop()
         super().closeEvent(event)
         QApplication.quit()

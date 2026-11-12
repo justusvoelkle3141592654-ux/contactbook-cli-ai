@@ -111,7 +111,10 @@ def candidate_files(folder: Path, options: Options) -> list[Path]:
     stack = [folder]
     while stack:
         current = stack.pop()
-        if safety.classify(str(current)) in (safety.PathVerdict.SYSTEM, safety.PathVerdict.OTHER_USER):
+        if safety.classify(str(current)) in (
+            safety.PathVerdict.SYSTEM,
+            safety.PathVerdict.OTHER_USER,
+        ):
             continue
         try:
             entries = sorted(os.scandir(current), key=lambda e: e.name.casefold())
@@ -129,15 +132,18 @@ def candidate_files(folder: Path, options: Options) -> list[Path]:
             if entry.is_dir(follow_symlinks=False):
                 if options.recursive:
                     stack.append(Path(entry.path))
-            elif entry.is_file(follow_symlinks=False) and any(
-                fnmatch.fnmatch(entry.name.lower(), p.lower()) for p in options.patterns
+            elif (
+                entry.is_file(follow_symlinks=False)
+                and any(fnmatch.fnmatch(entry.name.lower(), p.lower()) for p in options.patterns)
+                and st.st_size <= options.max_file_size
             ):
-                if st.st_size <= options.max_file_size:
-                    result.append(Path(entry.path))
+                result.append(Path(entry.path))
     return result
 
 
-def preview(folder: Path, options: Options, job: Job | None = None, max_lines: int = 200) -> Preview:
+def preview(
+    folder: Path, options: Options, job: Job | None = None, max_lines: int = 200
+) -> Preview:
     job = job or Job()
     pattern = compile_pattern(options)
     result = Preview()
@@ -170,7 +176,11 @@ def preview(folder: Path, options: Options, job: Job | None = None, max_lines: i
         else:  # a pattern that spans or removes line breaks: show matches only
             for match in pattern.finditer(text):
                 number = text.count("\n", 0, match.start()) + 1
-                lines.append(LineChange(number, match.group(0), substitute(pattern, options, match.group(0))[0]))
+                lines.append(
+                    LineChange(
+                        number, match.group(0), substitute(pattern, options, match.group(0))[0]
+                    )
+                )
                 if len(lines) >= max_lines:
                     break
         result.files.append(FileMatches(path, encoding, count, lines, st.st_size, st.st_mtime))
@@ -233,7 +243,9 @@ def apply(
             result.failed.append((path, getattr(exc, "strerror", None) or str(exc)))
     if make_backup and entries:
         journal = run_dir / "journal.json"
-        journal.write_text(json.dumps({"time": time.time(), "files": entries}, indent=1), encoding="utf-8")
+        journal.write_text(
+            json.dumps({"time": time.time(), "files": entries}, indent=1), encoding="utf-8"
+        )
         result.journal = journal
     return result
 

@@ -87,7 +87,7 @@ def bootstrap(argv: list[str]) -> tuple[QApplication, AppContext] | int:
     try:
         database = Database(paths.database_file)
         database.migrate(all_migrations(tools))
-    except Exception as exc:  # noqa: BLE001 - shown, then exit
+    except Exception as exc:
         log.exception("Opening the database failed")
         dialogs.critical(
             None,
@@ -113,7 +113,9 @@ def bootstrap(argv: list[str]) -> tuple[QApplication, AppContext] | int:
     return app, context
 
 
-def run_tool(app: QApplication, context: AppContext, tool_id: str, smoke: bool, message: str) -> int:
+def run_tool(
+    app: QApplication, context: AppContext, tool_id: str, smoke: bool, message: str
+) -> int:
     spec = next((t for t in context.tools if t.id == tool_id), None)
     if spec is None or spec.factory is None:
         log.error("Unknown tool %r", tool_id)
@@ -154,6 +156,7 @@ def run_main(app: QApplication, context: AppContext, args: argparse.Namespace) -
     window = OverviewWindow(context, context.tools)
     services = BackgroundServices(context, window)
     window.services = services
+    window.settings_page.services = services
 
     def on_message(text: str) -> None:
         if text.startswith("tool:"):

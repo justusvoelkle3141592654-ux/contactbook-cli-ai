@@ -68,7 +68,9 @@ class NotesWindow(ToolWindow):
         # List side -------------------------------------------------------------------------
         self.search = QLineEdit()
         self.search.setClearButtonEnabled(True)
-        self.search.addAction(context.theme.icon("search", secondary=True), QLineEdit.ActionPosition.LeadingPosition)
+        self.search.addAction(
+            context.theme.icon("search", secondary=True), QLineEdit.ActionPosition.LeadingPosition
+        )
         self.search.textChanged.connect(lambda _t: self.refresh_list())
         self.tag_filter = QComboBox()
         self.tag_filter.currentIndexChanged.connect(lambda _i: self.refresh_list())
@@ -150,10 +152,14 @@ class NotesWindow(ToolWindow):
         from desktop_organizer.app import dialogs as d
 
         d.shortcut("Ctrl+N", self, self.new_note)
-        d.shortcut("Ctrl+F", self, lambda: (self.search.setFocus(), self.search.selectAll()))
+        d.shortcut("Ctrl+F", self, self._focus_search)
         d.shortcut("Ctrl+S", self, self.save_current)
         self._apply_editor_font()
         self.retranslate()
+
+    def _focus_search(self) -> None:
+        self.search.setFocus()
+        self.search.selectAll()
 
     # -- texts and settings ----------------------------------------------------------------
 
@@ -171,12 +177,20 @@ class NotesWindow(ToolWindow):
         self.refresh_list()
 
     def _apply_editor_font(self) -> None:
-        font = QFont("Cascadia Mono, Consolas, monospace") if self.option("monospace") else QFont(self.font())
+        font = (
+            QFont("Cascadia Mono, Consolas, monospace")
+            if self.option("monospace")
+            else QFont(self.font())
+        )
         font.setPixelSize(self.option("editor_font_size"))
         self.body.setFont(font)
         self.body.setStyleSheet(
             f"QPlainTextEdit {{ font-size: {self.option('editor_font_size')}px;"
-            + (' font-family: "Cascadia Mono", "Consolas", monospace;' if self.option("monospace") else "")
+            + (
+                ' font-family: "Cascadia Mono", "Consolas", monospace;'
+                if self.option("monospace")
+                else ""
+            )
             + " }"
         )
 
@@ -200,14 +214,18 @@ class NotesWindow(ToolWindow):
     def refresh_list(self, select: int | None = None) -> None:
         lang = self.context.translator.language
         keep = select if select is not None else self._current
-        notes = search(self.conn, self.search.text(), self.tag_filter.currentData() or "", self.option("sort"))
+        notes = search(
+            self.conn, self.search.text(), self.tag_filter.currentData() or "", self.option("sort")
+        )
         self.list.blockSignals(True)
         self.list.clear()
         selected_item = None
         for note in notes:
             preview = " ".join(note.body.split())[:90]
             title = note.display_title or t("untitled")
-            text = f"{'● ' if note.pinned else ''}{title}\n{format_datetime(note.updated, lang)}  ·  {preview}"
+            marker = "● " if note.pinned else ""
+            when = format_datetime(note.updated, lang)
+            text = f"{marker}{title}\n{when}  ·  {preview}"
             entry = QListWidgetItem(text)
             entry.setData(Qt.ItemDataRole.UserRole, note.id)
             entry.setToolTip(title)
@@ -238,7 +256,9 @@ class NotesWindow(ToolWindow):
         self.pin_button.setChecked(bool(note and note.pinned))
         self.pin_button.setText(t("unpin") if note and note.pinned else t("pin"))
         if note:
-            self.status.setText(t("updated", time=format_datetime(note.updated, self.context.translator.language)))
+            self.status.setText(
+                t("updated", time=format_datetime(note.updated, self.context.translator.language))
+            )
         self._loading = False
         self._show_editor(note is not None)
 
@@ -290,7 +310,11 @@ class NotesWindow(ToolWindow):
         note = get(self.conn, self._current)
         name = (note.display_title if note else "") or t("untitled")
         if self.option("confirm_delete") and not dialogs.confirm_destructive(
-            self, t("delete.title", name=name), t("delete.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("delete.title", name=name),
+            t("delete.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         delete(self.conn, self._current)
@@ -308,7 +332,10 @@ class NotesWindow(ToolWindow):
             return
         name = "".join(c for c in (note.display_title or "Notiz") if c not in '\\/:*?"<>|')[:60]
         target = save_file_dialog(
-            self, t("export"), str(Path.home() / f"{name or date.today().isoformat()}.md"), t("export.filter")
+            self,
+            t("export"),
+            str(Path.home() / f"{name or date.today().isoformat()}.md"),
+            t("export.filter"),
         )
         if target is None:
             return
@@ -332,9 +359,24 @@ class NotesWindow(ToolWindow):
 
     def screenshot_prepare(self) -> None:
         if self.conn.execute("SELECT COUNT(*) FROM notes").fetchone()[0] == 0:
-            create(self.conn, "Einkauf Wochenende", "Milch, Brot, Kaffee\nFür Sonntag: Kuchen bestellen", ["privat"])
-            create(self.conn, "Projekt Q4", "Ziele:\n- Angebot bis Freitag\n- Termin mit Team festlegen", ["arbeit", "projekt"])
-            create(self.conn, "Ideen", "Desktop aufräumen\nBackup auf externe Platte einrichten", ["privat"])
+            create(
+                self.conn,
+                "Einkauf Wochenende",
+                "Milch, Brot, Kaffee\nFür Sonntag: Kuchen bestellen",
+                ["privat"],
+            )
+            create(
+                self.conn,
+                "Projekt Q4",
+                "Ziele:\n- Angebot bis Freitag\n- Termin mit Team festlegen",
+                ["arbeit", "projekt"],
+            )
+            create(
+                self.conn,
+                "Ideen",
+                "Desktop aufräumen\nBackup auf externe Platte einrichten",
+                ["privat"],
+            )
         self.refresh_tags()
         self.refresh_list()
         if self.list.count():

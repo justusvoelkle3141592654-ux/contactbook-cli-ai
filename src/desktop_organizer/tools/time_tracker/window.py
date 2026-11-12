@@ -67,7 +67,9 @@ def hours(seconds: float) -> str:
 
 
 class EntryDialog(QDialog):
-    def __init__(self, parent: QWidget, names: list[str], entry: Entry | None, language: str) -> None:
+    def __init__(
+        self, parent: QWidget, names: list[str], entry: Entry | None, language: str
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle(t("entry.edit") if entry else t("entry.add"))
         self.setMinimumWidth(480)
@@ -83,8 +85,12 @@ class EntryDialog(QDialog):
             edit.setCalendarPopup(True)
             edit.setDisplayFormat(fmt)
         now = time.time()
-        self.begin.setDateTime(QDateTime.fromSecsSinceEpoch(int(entry.start if entry else now - 3600)))
-        self.end.setDateTime(QDateTime.fromSecsSinceEpoch(int(entry.end if entry and entry.end else now)))
+        self.begin.setDateTime(
+            QDateTime.fromSecsSinceEpoch(int(entry.start if entry else now - 3600))
+        )
+        self.end.setDateTime(
+            QDateTime.fromSecsSinceEpoch(int(entry.end if entry and entry.end else now))
+        )
         self.note = QLineEdit(entry.note if entry else "")
         form = QFormLayout()
         form.setHorizontalSpacing(24)
@@ -191,7 +197,9 @@ class TimeTrackerWindow(ToolWindow):
         self.today_table.setColumnWidth(2, 120)
         self.today_table.setColumnWidth(3, 110)
         self.today_table.setColumnWidth(4, 320)
-        self.today_table.doubleClicked.connect(lambda i: self.edit_entry(self._entry_id(self.today_table, i)))
+        self.today_table.doubleClicked.connect(
+            lambda i: self.edit_entry(self._entry_id(self.today_table, i))
+        )
         self.today_table.context_requested.connect(self._entry_menu)
         today_layout.addWidget(self.today_table, 1)
 
@@ -251,7 +259,9 @@ class TimeTrackerWindow(ToolWindow):
 
     def retranslate(self) -> None:
         self.note.setPlaceholderText(t("note"))
-        self.project.lineEdit().setPlaceholderText(t("project"))
+        line = self.project.lineEdit()
+        if line is not None:
+            line.setPlaceholderText(t("project"))
         self.add_button.setText(t("entry.add"))
         self.prev_week.setText(t("week.prev"))
         self.next_week.setText(t("week.next"))
@@ -260,7 +270,9 @@ class TimeTrackerWindow(ToolWindow):
         self.tabs.setTabText(0, t("tab.today"))
         self.tabs.setTabText(1, t("tab.week"))
         self.tabs.setTabText(2, t("tab.projects"))
-        self.today_table.set_headers([t("col.project"), t("col.start"), t("col.end"), t("col.duration"), t("col.note")])
+        self.today_table.set_headers(
+            [t("col.project"), t("col.start"), t("col.end"), t("col.duration"), t("col.note")]
+        )
         self.projects_table.set_headers([t("col.project"), t("col.week"), t("col.status")])
         self.refresh()
 
@@ -309,7 +321,9 @@ class TimeTrackerWindow(ToolWindow):
         if current:
             self.project.setCurrentText(current.project)
             self.note.setText(current.note)
-            self.running_label.setText(t("running", project=current.project, time=format_datetime(current.start, lang)))
+            self.running_label.setText(
+                t("running", project=current.project, time=format_datetime(current.start, lang))
+            )
         else:
             self.running_label.setText(t("idle"))
         self.project.setEnabled(current is None)
@@ -326,7 +340,9 @@ class TimeTrackerWindow(ToolWindow):
         for entry in entries_between(self.conn, today, today):
             seconds = split_by_day(entry, now).get(today, 0.0)
             total += seconds
-            end_text = datetime.fromtimestamp(entry.end).strftime("%H:%M") if entry.end else t("now")
+            end_text = (
+                datetime.fromtimestamp(entry.end).strftime("%H:%M") if entry.end else t("now")
+            )
             table.source.appendRow(
                 [
                     item(entry.project, data=entry.id),
@@ -344,7 +360,9 @@ class TimeTrackerWindow(ToolWindow):
         self._fill_project_table()
 
     def _days(self) -> list[date]:
-        return week_days(date.today() + timedelta(days=7 * self._week_offset), self.option("week_start"))
+        return week_days(
+            date.today() + timedelta(days=7 * self._week_offset), self.option("week_start")
+        )
 
     def _shift_week(self, delta: int) -> None:
         self._week_offset = min(0, self._week_offset + delta)
@@ -357,12 +375,20 @@ class TimeTrackerWindow(ToolWindow):
         fmt = "%a %d.%m." if lang == "de" else "%a %m/%d"
         names_de = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
         labels = [
-            (f"{names_de[d.weekday()]} {d:%d.%m.}" if lang == "de" else d.strftime(fmt)) for d in days
+            (f"{names_de[d.weekday()]} {d:%d.%m.}" if lang == "de" else d.strftime(fmt))
+            for d in days
         ]
         self.week_table.set_headers([t("col.project"), *labels, t("col.total")])
         self.week_label.setText(
-            t("week.range", first=format_datetime(datetime.combine(days[0], datetime.min.time()).timestamp(), lang, False),
-              last=format_datetime(datetime.combine(days[-1], datetime.min.time()).timestamp(), lang, False))
+            t(
+                "week.range",
+                first=format_datetime(
+                    datetime.combine(days[0], datetime.min.time()).timestamp(), lang, False
+                ),
+                last=format_datetime(
+                    datetime.combine(days[-1], datetime.min.time()).timestamp(), lang, False
+                ),
+            )
         )
         self.next_week.setEnabled(self._week_offset < 0)
         data = totals(self.conn, days)
@@ -377,13 +403,19 @@ class TimeTrackerWindow(ToolWindow):
                 seconds = data[project].get(day, 0.0)
                 project_total += seconds
                 day_sums[index] += seconds
-                row.append(item(hours(round_seconds(seconds, rounding)) if seconds else "", sort=seconds))
+                row.append(
+                    item(hours(round_seconds(seconds, rounding)) if seconds else "", sort=seconds)
+                )
             row.append(item(hours(round_seconds(project_total, rounding)), sort=project_total))
             table.source.appendRow(row)
         if data:
             total_row = [item(t("col.total"), sort="~")]
-            total_row += [item(hours(round_seconds(s, rounding)) if s else "", sort=s) for s in day_sums]
-            total_row.append(item(hours(round_seconds(sum(day_sums), rounding)), sort=sum(day_sums)))
+            total_row += [
+                item(hours(round_seconds(s, rounding)) if s else "", sort=s) for s in day_sums
+            ]
+            total_row.append(
+                item(hours(round_seconds(sum(day_sums), rounding)), sort=sum(day_sums))
+            )
             for cell in total_row:
                 font = cell.font()
                 font.setBold(True)
@@ -402,7 +434,10 @@ class TimeTrackerWindow(ToolWindow):
                 [
                     item(project.name, data=project.id),
                     item(hours(seconds), sort=seconds),
-                    item(t("archived") if project.archived else t("active"), sort=int(project.archived)),
+                    item(
+                        t("archived") if project.archived else t("active"),
+                        sort=int(project.archived),
+                    ),
                 ]
             )
         table.setSortingEnabled(True)
@@ -444,7 +479,11 @@ class TimeTrackerWindow(ToolWindow):
 
     def _delete_entry(self, entry_id: int) -> None:
         if self.option("confirm_delete") and not dialogs.confirm_destructive(
-            self, t("entry.delete.title"), t("entry.delete.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("entry.delete.title"),
+            t("entry.delete.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         delete_entry(self.conn, entry_id)
@@ -463,19 +502,32 @@ class TimeTrackerWindow(ToolWindow):
             return
         menu = QMenu(self)
         menu.addAction(t("project.rename"), lambda: self._rename(project_id, project.name))
-        menu.addAction(t("project.restore") if project.archived else t("project.archive"), lambda: (set_archived(self.conn, project_id, not project.archived), self.refresh()))
+        menu.addAction(
+            t("project.restore") if project.archived else t("project.archive"),
+            lambda: self._set_archived(project_id, not project.archived),
+        )
         menu.addAction(tr("common.delete"), lambda: self._delete_project(project_id, project.name))
         menu.exec(pos)
 
+    def _set_archived(self, project_id: int, archived: bool) -> None:
+        set_archived(self.conn, project_id, archived)
+        self.refresh()
+
     def _rename(self, project_id: int, name: str) -> None:
-        new, ok = QInputDialog.getText(self, t("project.rename"), t("field.project"), QLineEdit.EchoMode.Normal, name)
+        new, ok = QInputDialog.getText(
+            self, t("project.rename"), t("field.project"), QLineEdit.EchoMode.Normal, name
+        )
         if ok and new.strip():
             rename_project(self.conn, project_id, new)
             self.refresh()
 
     def _delete_project(self, project_id: int, name: str) -> None:
         if not dialogs.confirm_destructive(
-            self, t("project.delete.title", name=name), t("project.delete.body"), tr("common.delete"), tr("common.cancel")
+            self,
+            t("project.delete.title", name=name),
+            t("project.delete.body"),
+            tr("common.delete"),
+            tr("common.cancel"),
         ):
             return
         delete_project(self.conn, project_id)
@@ -484,7 +536,10 @@ class TimeTrackerWindow(ToolWindow):
     def export_week(self) -> None:
         days = self._days()
         target = save_file_dialog(
-            self, tr("common.export_csv"), str(Path.home() / f"{t('export_name')}-{days[0].isoformat()}.csv"), tr("common.csv_filter")
+            self,
+            tr("common.export_csv"),
+            str(Path.home() / f"{t('export_name')}-{days[0].isoformat()}.csv"),
+            tr("common.csv_filter"),
         )
         if target is None:
             return
@@ -499,7 +554,19 @@ class TimeTrackerWindow(ToolWindow):
             intern = ensure_project(self.conn, "Interne Planung")
             for back in range(0, 5):
                 day = today - timedelta(days=back)
-                add_entry(self.conn, web, day.timestamp(), (day + timedelta(hours=2, minutes=15)).timestamp(), "Startseite")
-                add_entry(self.conn, mail, (day + timedelta(hours=3)).timestamp(), (day + timedelta(hours=4, minutes=10)).timestamp(), "Tickets")
+                add_entry(
+                    self.conn,
+                    web,
+                    day.timestamp(),
+                    (day + timedelta(hours=2, minutes=15)).timestamp(),
+                    "Startseite",
+                )
+                add_entry(
+                    self.conn,
+                    mail,
+                    (day + timedelta(hours=3)).timestamp(),
+                    (day + timedelta(hours=4, minutes=10)).timestamp(),
+                    "Tickets",
+                )
             start(self.conn, intern, "Wochenplanung", time.time() - 47 * 60)
         self.refresh()

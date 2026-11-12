@@ -17,6 +17,25 @@ sys.path.insert(0, str(ROOT / "src"))
 OUT = ROOT / "docs" / "images"
 
 
+def seed(conn: object) -> None:
+    """Sample data so the overview's today strip shows realistic values."""
+    import time
+
+    from desktop_organizer.tools.notes.logic import create as note
+    from desktop_organizer.tools.reminders.logic import create as reminder
+    from desktop_organizer.tools.tasks.logic import create as task
+    from desktop_organizer.tools.time_tracker.logic import ensure_project, start
+
+    now = time.time()
+    task(conn, "Angebot senden", now + 3600)  # type: ignore[arg-type]
+    task(conn, "Steuerunterlagen sortieren", now + 7200)  # type: ignore[arg-type]
+    task(conn, "Team-Meeting vorbereiten", now + 86400 * 2)  # type: ignore[arg-type]
+    reminder(conn, "Pause", now + 35 * 60, "minutes", 50)  # type: ignore[arg-type]
+    for title in ("Einkauf", "Projekt Q4", "Ideen", "Urlaub"):
+        note(conn, title, "")  # type: ignore[arg-type]
+    start(conn, ensure_project(conn, "Website-Relaunch"), "", now - 47 * 60)  # type: ignore[arg-type]
+
+
 def main() -> int:
     from PySide6.QtWidgets import QApplication
 
@@ -27,7 +46,7 @@ def main() -> int:
     from desktop_organizer.core.paths import AppPaths, resources_dir
     from desktop_organizer.core.settings import Settings
     from desktop_organizer.core.storage import Database
-    from desktop_organizer.tools.registry import all_tools
+    from desktop_organizer.tools.registry import all_migrations, all_tools, i18n_files
 
     OUT.mkdir(parents=True, exist_ok=True)
     app = QApplication(sys.argv[:1])
@@ -36,11 +55,14 @@ def main() -> int:
     paths.ensure()
     settings = Settings(paths.settings_file)
     settings.load()
-    translator = Translator(resources_dir() / "i18n", "de")
+    tools = all_tools()
+    translator = Translator(resources_dir() / "i18n", "de", i18n_files(tools))
     install(translator)
     db = Database(paths.database_file)
+    db.migrate(all_migrations(tools))
+    seed(db.connection)
     theme = ThemeManager(app, "light")
-    context = AppContext(paths, settings, translator, db, theme, "")
+    context = AppContext(paths, settings, translator, db, theme, "", tools)
 
     shots: list[str] = []
     window = OverviewWindow(context, all_tools())
