@@ -82,7 +82,8 @@ class InfoBar(QFrame):
         self.text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         self.action = QPushButton()
         self.action.hide()
-        self.close_button = QPushButton("×")
+        self.close_button = QPushButton()
+        self.close_button.setIcon(theme.icon("x"))
         self.close_button.setFixedWidth(32)
         self.close_button.setAccessibleName(tr("common.close"))
         self.close_button.setFlat(True)
@@ -95,6 +96,7 @@ class InfoBar(QFrame):
         row.addWidget(self.action)
         row.addWidget(self.close_button)
         self._severity = "info"
+        self._action_slot: Any = None
         theme.on_change(self._refresh_icon)
         self.hide()
 
@@ -109,6 +111,7 @@ class InfoBar(QFrame):
         from desktop_organizer.app.theming import tinted_icon
 
         self.icon.setPixmap(tinted_icon(SEVERITY_ICONS[self._severity], color).pixmap(16, 16))
+        self.close_button.setIcon(self._theme.icon("x"))
 
     def show_message(
         self, severity: str, text: str, action_text: str = "", action: Any = None
@@ -119,12 +122,12 @@ class InfoBar(QFrame):
         self.style().polish(self)
         self.text.setText(text)
         self._refresh_icon()
-        try:
-            self.action.clicked.disconnect()
-        except (RuntimeError, TypeError):
-            pass
+        if self._action_slot is not None:
+            self.action.clicked.disconnect(self._action_slot)
+            self._action_slot = None
         if action_text and action is not None:
             self.action.setText(action_text)
+            self._action_slot = action
             self.action.clicked.connect(action)
             self.action.show()
         else:

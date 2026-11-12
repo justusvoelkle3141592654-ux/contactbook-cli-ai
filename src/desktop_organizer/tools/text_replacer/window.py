@@ -273,7 +273,12 @@ class TextReplacerWindow(ToolWindow):
     def _applied(self, result: Any) -> None:
         assert isinstance(result, ApplyResult)
         if result.failed:
-            reasons = ", ".join(f"{p.name} ({t('reason.' + r) if r in ('changed', 'read-only', 'binary') else r})" for p, r in result.failed[:4])
+            known = {
+                "changed": t("reason.changed"),
+                "read-only": t("reason.read-only"),
+                "binary": t("reason.binary"),
+            }
+            reasons = ", ".join(f"{p.name} ({known.get(r, r)})" for p, r in result.failed[:4])
             self.info.show_message(
                 "warning", t("done.partial", files=result.files, count=result.replacements, failed=reasons)
             )

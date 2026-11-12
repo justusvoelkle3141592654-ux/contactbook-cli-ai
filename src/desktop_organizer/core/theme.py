@@ -138,6 +138,7 @@ QLabel[textStyle="subtitle"] {{ font-size: 16px; font-weight: 600; }}
 QLabel[textStyle="title"] {{ font-size: 20px; font-weight: 600; }}
 QLabel[textStyle="secondary"] {{ color: {t.text_secondary}; }}
 QLabel[textStyle="empty"] {{ color: {t.text_secondary}; padding: 24px; }}
+QLabel[textStyle="error"] {{ color: {t.error}; }}
 QLabel[textStyle="display"] {{ font-size: 28px; font-weight: 600; }}
 QLabel[textStyle="section"] {{ font-size: 14px; font-weight: 600; }}
 QLabel[textStyle="cardTitle"] {{ font-size: 14px; }}
@@ -330,6 +331,7 @@ QListWidget[mono="true"], QPlainTextEdit[mono="true"] {{
 QListWidget::item {{ padding: 6px 8px; border-radius: 4px; }}
 QListWidget::item:selected {{ background: {t.selection}; color: {t.text}; }}
 QListWidget::item:hover {{ background: {t.card_hover}; }}
+QLineEdit[noteTitle="true"] {{ font-size: 20px; font-weight: 600; min-height: 42px; }}
 QFrame#Divider {{ background: {t.divider}; max-height: 1px; min-height: 1px; border: none; }}
 QWidget#StatusLine {{ background: {t.layer}; border-top: 1px solid {t.card_border}; }}
 

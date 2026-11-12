@@ -41,6 +41,8 @@ def test_core_catalogs_have_identical_keys_and_placeholders() -> None:
 def test_tool_catalogs_are_complete(path: Path) -> None:
     catalog = load_tool_catalog(path)
     assert set(catalog["de"]) == set(catalog["en"])
+    reserved = {f"tool.{path.parent.name}.title", f"tool.{path.parent.name}.description"}
+    assert not reserved & set(catalog["de"]), "tool name keys belong in the core catalog"
     for key, text in catalog["de"].items():
         assert key.startswith(f"tool.{path.parent.name}."), key
         assert _placeholders(text) == _placeholders(catalog["en"][key]), key

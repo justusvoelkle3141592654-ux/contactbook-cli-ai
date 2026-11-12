@@ -125,16 +125,22 @@ def test_every_icon_name_in_the_shell_exists() -> None:
 
     from desktop_organizer.core.paths import resources_dir
 
-    app_dir = resources_dir().parent / "app"
+    package = resources_dir().parent
     pattern = re.compile(
         r'(?:NavButton|SettingsCard|IconTile)\([^,()]+,\s*"([a-z0-9-]+)"'
         r'|Category\.\w+: "([a-z0-9-]+)"'
         r'|\.(?:icon|accent_icon)\("([a-z0-9-]+)"'
+        r'|IconTile\(context\.theme, "([a-z0-9-]+)"'
+        r'|EmptyState\(context\.theme, "([a-z0-9-]+)"'
     )
     names = set()
-    for file in app_dir.glob("*.py"):
-        for match in pattern.finditer(file.read_text(encoding="utf-8")):
+    icon_dict = re.compile(r"ICONS\s*=\s*\{([^}]*)\}", re.S)
+    for file in package.rglob("*.py"):
+        text = file.read_text(encoding="utf-8")
+        for match in pattern.finditer(text):
             names.add(next(g for g in match.groups() if g))
+        for block in icon_dict.findall(text):
+            names.update(re.findall(r':\s*"([a-z0-9-]+)"', block))
     assert len(names) >= 10
     missing = sorted(n for n in names if not (resources_dir() / "icons" / f"{n}.svg").exists())
     assert missing == []
