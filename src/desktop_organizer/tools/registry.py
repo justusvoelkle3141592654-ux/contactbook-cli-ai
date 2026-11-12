@@ -1,9 +1,9 @@
-"""Catalogue of tools shown in the overview.
+"""Catalogue of tools.
 
 Every tool lives in its own package below ``desktop_organizer.tools`` and exposes a
-module-level ``SPEC`` (a ``ToolSpec`` with a window factory). Tools that are planned but
-not built yet appear in ``PLANNED`` and are shown as "not available yet". Adding a tool
-means adding its package; no other tool changes.
+module-level ``SPEC``. The spec carries everything the shell needs: category, icon,
+window factory, settings declaration, database migrations and the location of its
+language file. Adding a tool means adding its package; no other tool changes.
 """
 
 from __future__ import annotations
@@ -12,9 +12,13 @@ import importlib
 import logging
 import pkgutil
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+from desktop_organizer.core.storage import Migration
+from desktop_organizer.core.tool_settings import SettingField
 
 if TYPE_CHECKING:
     from desktop_organizer.app.context import AppContext
@@ -32,6 +36,21 @@ class Category(Enum):
 
 CATEGORY_ORDER = (Category.FILES, Category.SAFETY, Category.EVERYDAY, Category.SYSTEM)
 
+TOOL_ORDER = (
+    "file_cleaner",
+    "duplicate_finder",
+    "file_size",
+    "text_replacer",
+    "backup",
+    "password_generator",
+    "notes",
+    "tasks",
+    "reminders",
+    "time_tracker",
+    "system_monitor",
+    "clipboard_history",
+)
+
 WindowFactory = Callable[["AppContext"], "ToolWindow"]
 
 
@@ -41,6 +60,9 @@ class ToolSpec:
     category: Category
     icon: str
     factory: WindowFactory | None = None
+    settings: tuple[SettingField, ...] = ()
+    migrations: tuple[Migration, ...] = ()
+    package_dir: Path | None = field(default=None, compare=False)
 
     @property
     def available(self) -> bool:
@@ -54,25 +76,16 @@ class ToolSpec:
     def description_key(self) -> str:
         return f"tool.{self.id}.description"
 
-
-PLANNED: tuple[ToolSpec, ...] = (
-    ToolSpec("file_cleaner", Category.FILES, "folder-tree"),
-    ToolSpec("duplicate_finder", Category.FILES, "copy"),
-    ToolSpec("file_size", Category.FILES, "chart-pie"),
-    ToolSpec("text_replacer", Category.FILES, "replace"),
-    ToolSpec("backup", Category.SAFETY, "hard-drive-download"),
-    ToolSpec("password_generator", Category.SAFETY, "key-round"),
-    ToolSpec("notes", Category.EVERYDAY, "notebook-pen"),
-    ToolSpec("tasks", Category.EVERYDAY, "list-checks"),
-    ToolSpec("reminders", Category.EVERYDAY, "bell"),
-    ToolSpec("time_tracker", Category.EVERYDAY, "timer"),
-    ToolSpec("system_monitor", Category.SYSTEM, "activity"),
-    ToolSpec("clipboard_history", Category.SYSTEM, "clipboard-list"),
-)
+    @property
+    def i18n_file(self) -> Path | None:
+        if self.package_dir is None:
+            return None
+        path = self.package_dir / "i18n.json"
+        return path if path.exists() else None
 
 
 def discover() -> dict[str, ToolSpec]:
-    """Return implemented tools found as packages below ``desktop_organizer.tools``."""
+    """Return the tools found as packages below ``desktop_organizer.tools``."""
     import desktop_organizer.tools as package
 
     found: dict[str, ToolSpec] = {}
@@ -89,10 +102,22 @@ def discover() -> dict[str, ToolSpec]:
 
 
 def all_tools(implemented: dict[str, ToolSpec] | None = None) -> list[ToolSpec]:
-    """Planned tools in their fixed order, replaced by the implementation where one exists."""
+    """Tools in their fixed order, grouped by category."""
     impl = discover() if implemented is None else implemented
-    tools = [impl.get(spec.id, spec) for spec in PLANNED]
-    planned_ids = {spec.id for spec in PLANNED}
-    tools.extend(spec for tool_id, spec in impl.items() if tool_id not in planned_ids)
-    order = {category: index for index, category in enumerate(CATEGORY_ORDER)}
-    return sorted(tools, key=lambda s: order[s.category])  # stable: keeps planned order
+    order = {tool_id: index for index, tool_id in enumerate(TOOL_ORDER)}
+    categories = {category: index for index, category in enumerate(CATEGORY_ORDER)}
+    return sorted(
+        impl.values(), key=lambda s: (categories[s.category], order.get(s.id, len(order)), s.id)
+    )
+
+
+def find(tool_id: str) -> ToolSpec | None:
+    return discover().get(tool_id)
+
+
+def all_migrations(tools: list[ToolSpec]) -> list[Migration]:
+    return [migration for spec in tools for migration in spec.migrations]
+
+
+def i18n_files(tools: list[ToolSpec]) -> list[Path]:
+    return [path for spec in tools if (path := spec.i18n_file) is not None]

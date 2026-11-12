@@ -35,6 +35,9 @@ class Tokens:
     accent_subtle: str
     nav_hover: str
     nav_selected: str
+    success_subtle: str
+    warning_subtle: str
+    error_subtle: str
 
 
 LIGHT = Tokens(
@@ -64,6 +67,9 @@ LIGHT = Tokens(
     accent_subtle="#E6EEFA",
     nav_hover="#EAEAEA",
     nav_selected="#E4E4E4",
+    success_subtle="#DFF6DD",
+    warning_subtle="#FFF4CE",
+    error_subtle="#FDE7E9",
 )
 
 DARK = Tokens(
@@ -93,6 +99,9 @@ DARK = Tokens(
     accent_subtle="#24344B",
     nav_hover="#2D2D2D",
     nav_selected="#333333",
+    success_subtle="#2A3B26",
+    warning_subtle="#433519",
+    error_subtle="#442726",
 )
 
 
@@ -160,6 +169,57 @@ QLabel#KeyHint {{
     font-size: 12px;
 }}
 QPushButton[role="danger"] {{ color: {t.error}; }}
+QPushButton[role="toolbar"] {{ padding: 0 12px; }}
+QFrame#InfoBar[severity="info"] {{
+    background: {t.accent_subtle}; border: 1px solid {t.card_border}; border-radius: 6px;
+}}
+QFrame#InfoBar[severity="success"] {{
+    background: {t.success_subtle}; border: 1px solid {t.card_border}; border-radius: 6px;
+}}
+QFrame#InfoBar[severity="warning"] {{
+    background: {t.warning_subtle}; border: 1px solid {t.card_border}; border-radius: 6px;
+}}
+QFrame#InfoBar[severity="error"] {{
+    background: {t.error_subtle}; border: 1px solid {t.card_border}; border-radius: 6px;
+}}
+QFrame#Panel {{
+    background: {t.card};
+    border: 1px solid {t.card_border};
+    border-radius: 8px;
+}}
+QCheckBox, QRadioButton {{ spacing: 8px; background: transparent; }}
+QTabWidget::pane {{ border: none; }}
+QTabBar::tab {{
+    background: transparent;
+    color: {t.text_secondary};
+    padding: 8px 12px;
+    margin-right: 4px;
+    border: none;
+    border-bottom: 2px solid transparent;
+}}
+QTabBar::tab:selected {{ color: {t.text}; border-bottom: 2px solid {t.accent}; }}
+QTabBar::tab:hover {{ color: {t.text}; }}
+QSplitter::handle {{ background: transparent; }}
+QSlider::groove:horizontal {{ height: 4px; background: {t.nav_selected}; border-radius: 2px; }}
+QSlider::sub-page:horizontal {{ background: {t.accent}; border-radius: 2px; }}
+QSlider::handle:horizontal {{
+    background: {t.accent}; width: 16px; height: 16px; margin: -6px 0; border-radius: 8px;
+}}
+QDateTimeEdit, QDateEdit, QTimeEdit {{
+    background: {t.surface};
+    border: 1px solid {t.control_border};
+    border-radius: 4px;
+    min-height: 30px;
+    padding: 0 8px;
+}}
+QMenu {{
+    background: {t.card};
+    border: 1px solid {t.card_border};
+    padding: 4px;
+}}
+QMenu::item {{ padding: 6px 24px 6px 12px; border-radius: 4px; }}
+QMenu::item:selected {{ background: {t.nav_selected}; color: {t.text}; }}
+QMenu::separator {{ height: 1px; background: {t.divider}; margin: 4px 8px; }}
 
 QPushButton {{
     background: {t.surface};
@@ -223,6 +283,7 @@ QTableView::item, QTreeView::item {{
     border-bottom: 1px solid {t.divider};
 }}
 QTableView::item:hover, QTreeView::item:hover {{ background: {t.card_hover}; }}
+QTreeView::item {{ min-height: 30px; }}
 QTableView::item:selected, QTreeView::item:selected {{
     background: {t.selection};
     color: {t.text};
@@ -260,6 +321,15 @@ QScrollBar::handle:horizontal {{
 }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 
+QLineEdit[mono="true"] {{
+    font-family: "Cascadia Mono", "Consolas", "DejaVu Sans Mono", monospace; font-size: 20px;
+}}
+QListWidget[mono="true"], QPlainTextEdit[mono="true"] {{
+    font-family: "Cascadia Mono", "Consolas", "DejaVu Sans Mono", monospace; font-size: 13px;
+}}
+QListWidget::item {{ padding: 6px 8px; border-radius: 4px; }}
+QListWidget::item:selected {{ background: {t.selection}; color: {t.text}; }}
+QListWidget::item:hover {{ background: {t.card_hover}; }}
 QFrame#Divider {{ background: {t.divider}; max-height: 1px; min-height: 1px; border: none; }}
 QWidget#StatusLine {{ background: {t.layer}; border-top: 1px solid {t.card_border}; }}
 

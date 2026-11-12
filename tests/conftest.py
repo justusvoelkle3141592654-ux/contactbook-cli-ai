@@ -14,7 +14,9 @@ from desktop_organizer.core.paths import resources_dir
 
 @pytest.fixture
 def translator() -> Translator:
-    t = Translator(resources_dir() / "i18n", "en")
+    from desktop_organizer.tools.registry import all_tools, i18n_files
+
+    t = Translator(resources_dir() / "i18n", "en", i18n_files(all_tools()))
     install(t)
     return t
 

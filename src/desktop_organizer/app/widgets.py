@@ -220,7 +220,7 @@ class ToolCard(KeyboardFocusMixin, QAbstractButton):
 
         right = self.width() - 16
         if self._available:
-            chevron = self._theme.icon("chevron-right", secondary=True)
+            chevron = self._theme.icon("arrow-up-right", secondary=True)
             chevron.paint(p, QRect(right - 16, cy - 8, 16, 16))
             right -= 16 + 12
         else:

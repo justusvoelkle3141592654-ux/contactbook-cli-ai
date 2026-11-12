@@ -28,3 +28,20 @@ def format_bytes(size: int, language: str) -> str:
 def format_percent(value: float, language: str) -> str:
     sep = " " if language == "de" else ""
     return f"{format_number(value, language)}{sep}%"
+
+
+def format_datetime(timestamp: float, language: str, with_time: bool = True) -> str:
+    from datetime import datetime
+
+    moment = datetime.fromtimestamp(timestamp)
+    if language == "de":
+        return moment.strftime("%d.%m.%Y %H:%M" if with_time else "%d.%m.%Y")
+    return moment.strftime("%Y-%m-%d %H:%M" if with_time else "%Y-%m-%d")
+
+
+def format_duration(seconds: float) -> str:
+    """Elapsed time as H:MM:SS, for example 1:05:09."""
+    total = int(round(seconds))
+    hours, rest = divmod(total, 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}"

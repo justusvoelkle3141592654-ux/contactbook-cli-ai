@@ -67,7 +67,7 @@ class ThemeManager(QObject):
         self._tokens = tokens_for(self._is_dark())
         self._app.setPalette(_palette(self._tokens))
         self._app.setStyleSheet(
-            build_stylesheet(self._tokens) + _arrow_rules(self._tokens.text_secondary)
+            build_stylesheet(self._tokens) + _image_rules(self._tokens)
         )
         tinted_icon.cache_clear()
         self.changed.emit()
@@ -83,20 +83,48 @@ class ThemeManager(QObject):
         self.changed.connect(callback)
 
 
-def _arrow_rules(color: str) -> str:
-    """Style sheets can only reference image files, so write the tinted chevron to disk."""
+def _icon_file(name: str, color: str, stroke: str | None = None) -> str:
+    """Style sheets can only reference image files, so write tinted icons to disk."""
     folder = Path(tempfile.gettempdir()) / "DesktopOrganizer-ui"
     folder.mkdir(exist_ok=True)
-    target = folder / f"chevron-down-{color.lstrip('#')}.svg"
+    suffix = f"-{stroke}" if stroke else ""
+    target = folder / f"{name}-{color.lstrip('#')}{suffix}.svg"
     if not target.exists():
-        svg = (resources_dir() / "icons" / "chevron-down.svg").read_text(encoding="utf-8")
-        target.write_text(svg.replace("currentColor", color), encoding="utf-8")
-    url = target.as_posix()
-    return (
-        f"QComboBox::down-arrow {{ image: url({url}); width: 16px; height: 16px; }}\n"
-        "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: center right;"
-        " width: 28px; border: none; }\n"
-    )
+        svg = (resources_dir() / "icons" / f"{name}.svg").read_text(encoding="utf-8")
+        svg = svg.replace("currentColor", color)
+        if stroke:
+            svg = svg.replace('stroke-width="2"', f'stroke-width="{stroke}"')
+        target.write_text(svg, encoding="utf-8")
+    return target.as_posix()
+
+
+def _image_rules(t: Tokens) -> str:
+    arrow = _icon_file("chevron-down", t.text_secondary)
+    check = _icon_file("check", t.on_accent, stroke="3")
+    indicator = "QCheckBox::indicator, QTableView::indicator, QTreeView::indicator, QListView::indicator"
+    return f"""
+QComboBox::down-arrow {{ image: url({arrow}); width: 16px; height: 16px; }}
+QComboBox::drop-down {{
+    subcontrol-origin: padding; subcontrol-position: center right; width: 28px; border: none;
+}}
+{indicator} {{
+    width: 16px; height: 16px;
+    border: 1px solid {t.control_border}; border-radius: 4px; background: {t.surface};
+}}
+QCheckBox::indicator:hover, QTableView::indicator:hover, QTreeView::indicator:hover {{
+    border-color: {t.text_secondary};
+}}
+QCheckBox::indicator:checked, QTableView::indicator:checked, QTreeView::indicator:checked,
+QListView::indicator:checked {{
+    background: {t.accent}; border-color: {t.accent}; image: url({check});
+}}
+QCheckBox::indicator:disabled {{ border-color: {t.divider}; background: {t.surface_alt}; }}
+QRadioButton::indicator {{
+    width: 16px; height: 16px; border-radius: 9px;
+    border: 1px solid {t.control_border}; background: {t.surface};
+}}
+QRadioButton::indicator:checked {{ border: 5px solid {t.accent}; background: {t.on_accent}; }}
+"""
 
 
 def _palette(t: Tokens) -> QPalette:

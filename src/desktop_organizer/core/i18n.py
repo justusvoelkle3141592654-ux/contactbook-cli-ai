@@ -35,9 +35,28 @@ def load_catalog(directory: Path, code: str) -> dict[str, str]:
     return data
 
 
+def load_tool_catalog(path: Path) -> dict[str, dict[str, str]]:
+    """A tool's ``i18n.json``: ``{"de": {key: text}, "en": {key: text}}``."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    result: dict[str, dict[str, str]] = {}
+    for code in SUPPORTED:
+        part = data.get(code)
+        if not isinstance(part, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in part.items()
+        ):
+            raise ValueError(f"{path} needs a string map for {code!r}")
+        result[code] = part
+    return result
+
+
 class Translator:
-    def __init__(self, directory: Path, language: str) -> None:
+    def __init__(
+        self, directory: Path, language: str, extra_files: list[Path] | None = None
+    ) -> None:
         self._catalogs = {code: load_catalog(directory, code) for code in SUPPORTED}
+        for path in extra_files or []:
+            for code, part in load_tool_catalog(path).items():
+                self._catalogs[code].update(part)
         self._language = language if language in SUPPORTED else FALLBACK
         self._listeners: list[Callable[[], None]] = []
         self._reported: set[str] = set()

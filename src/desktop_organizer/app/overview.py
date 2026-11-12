@@ -24,7 +24,6 @@ from desktop_organizer import __version__
 from desktop_organizer.app import dialogs
 from desktop_organizer.app.context import AppContext
 from desktop_organizer.app.settings_page import SettingsPage
-from desktop_organizer.app.tool_window import ToolWindow
 from desktop_organizer.app.widgets import Meter, NavButton, SearchField, ToolCard
 from desktop_organizer.core import system_info
 from desktop_organizer.core.formatting import format_bytes, format_percent
@@ -257,7 +256,7 @@ class OverviewWindow(QMainWindow):
         super().__init__()
         self._context = context
         self._tools = tools
-        self._open_windows: dict[str, ToolWindow] = {}
+        self.services: object = None
         self.setMinimumSize(760, 520)
 
         # Sidebar ----------------------------------------------------------------------
@@ -432,16 +431,30 @@ class OverviewWindow(QMainWindow):
         self.search.selectAll()
 
     def open_tool(self, spec: ToolSpec) -> None:
-        if spec.factory is None:
-            return
-        window = self._open_windows.get(spec.id)
-        if window is None:
-            window = spec.factory(self._context)
-            window.destroyed.connect(lambda _=None, i=spec.id: self._open_windows.pop(i, None))
-            self._open_windows[spec.id] = window
-        window.show()
-        window.raise_()
-        window.activateWindow()
+        if spec.factory is not None:
+            self.launch(spec.id)
+
+    def launch(self, tool_id: str, extra: list[str] | None = None) -> bool:
+        """Start the tool as its own process; a running copy comes to the front instead."""
+        from desktop_organizer.app import launcher
+
+        if tool_id not in {t.id for t in self._tools}:
+            return False
+        if not launcher.launch_tool(tool_id, extra):
+            dialogs.warn(
+                self,
+                tr("app.name"),
+                tr("overview.launch_failed", tool=tr(f"tool.{tool_id}.title")),
+            )
+            return False
+        recent = [tool_id, *[t for t in self._context.settings.get("recent_tools") if t != tool_id]]
+        self._context.settings.set("recent_tools", recent[:6])
+        return True
+
+    def bring_to_front(self) -> None:
+        self.showNormal()
+        self.raise_()
+        self.activateWindow()
 
     # -- status line ---------------------------------------------------------------------
 

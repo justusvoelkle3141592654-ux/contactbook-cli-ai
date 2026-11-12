@@ -1,4 +1,8 @@
-"""Only one running instance per data folder; a second start brings the first to the front."""
+"""One running instance per key; a second start forwards its request to the first.
+
+The main window and every tool window use their own key, so starting a tool that is
+already open brings its window to the front instead of opening a second copy.
+"""
 
 from __future__ import annotations
 
@@ -9,21 +13,26 @@ from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 
 class SingleInstance(QObject):
-    activated = Signal()
+    message_received = Signal(str)
 
     def __init__(self, key: str) -> None:
         super().__init__()
         # Local server names must be short and free of path characters.
-        self._name = "DesktopOrganizer-" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
+        self._name = "DesktopOrganizer-" + hashlib.sha256(key.encode("utf-8")).hexdigest()[:20]
         self._server: QLocalServer | None = None
 
-    def acquire(self) -> bool:
-        """Return True if this is the first instance. Otherwise notify the running one."""
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def acquire(self, message: str = "activate") -> bool:
+        """Return True if this is the first instance; otherwise send ``message`` to it."""
         socket = QLocalSocket()
         socket.connectToServer(self._name)
-        if socket.waitForConnected(300):
-            socket.write(b"activate")
-            socket.waitForBytesWritten(300)
+        if socket.waitForConnected(500):
+            socket.write(message.encode("utf-8"))
+            socket.flush()
+            socket.waitForBytesWritten(500)
             socket.disconnectFromServer()
             return False
 
@@ -39,6 +48,15 @@ class SingleInstance(QObject):
         if self._server is None:
             return
         connection = self._server.nextPendingConnection()
-        if connection is not None:
-            connection.disconnected.connect(connection.deleteLater)
-            self.activated.emit()
+        if connection is None:
+            return
+
+        def read() -> None:
+            data = bytes(connection.readAll().data()).decode("utf-8", errors="replace")
+            for line in filter(None, data.splitlines()):
+                self.message_received.emit(line)
+
+        connection.readyRead.connect(read)
+        connection.disconnected.connect(connection.deleteLater)
+        if connection.bytesAvailable():
+            read()

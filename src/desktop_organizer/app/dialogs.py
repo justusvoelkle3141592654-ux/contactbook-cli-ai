@@ -35,6 +35,24 @@ def confirm_destructive(
     return box.clickedButton() is confirm_button
 
 
+def confirm(parent: QWidget | None, title: str, body: str, confirm: str, cancel: str) -> bool:
+    """Ask a yes/no question where confirming is not destructive."""
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Icon.Question)
+    box.setWindowTitle(title)
+    box.setText(title)
+    box.setInformativeText(body)
+    confirm_button = QPushButton(confirm)
+    confirm_button.setProperty("role", "primary")
+    cancel_button = QPushButton(cancel)
+    box.addButton(confirm_button, QMessageBox.ButtonRole.AcceptRole)
+    box.addButton(cancel_button, QMessageBox.ButtonRole.RejectRole)
+    box.setDefaultButton(confirm_button)
+    box.setEscapeButton(cancel_button)
+    box.exec()
+    return box.clickedButton() is confirm_button
+
+
 def message(parent: QWidget | None, icon: QMessageBox.Icon, title: str, body: str) -> None:
     box = QMessageBox(parent)
     box.setIcon(icon)

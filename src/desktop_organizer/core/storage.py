@@ -35,14 +35,26 @@ def _check_sequence(migrations: Sequence[Migration]) -> None:
             )
 
 
+def connect(path: Path) -> sqlite3.Connection:
+    """Open a connection configured for use by several processes at once.
+
+    The main window and each tool window are separate processes sharing one file; WAL
+    mode lets readers and one writer work in parallel, the busy timeout waits for a
+    short lock instead of failing. Worker threads open their own connection.
+    """
+    conn = sqlite3.connect(path, isolation_level=None, timeout=10, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 10000")
+    return conn
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self._path = path
         path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(path, isolation_level=None)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA foreign_keys = ON")
-        self._conn.execute("PRAGMA journal_mode = WAL")
+        self._conn = connect(path)
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations ("
             " module TEXT NOT NULL,"
@@ -74,7 +86,12 @@ class Database:
             if migration.version <= self.current_version(migration.module):
                 continue
             try:
-                self._conn.execute("BEGIN")
+                # IMMEDIATE takes the write lock up front; re-check inside the lock in
+                # case another process applied the migration meanwhile.
+                self._conn.execute("BEGIN IMMEDIATE")
+                if migration.version <= self.current_version(migration.module):
+                    self._conn.execute("COMMIT")
+                    continue
                 for statement in migration.statements:
                     self._conn.execute(statement)
                 self._conn.execute(
@@ -89,6 +106,14 @@ class Database:
                 ) from exc
             applied.append(migration)
         return applied
+
+    def execute(self, sql: str, params: tuple[object, ...] | dict[str, object] = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, params)
+
+    def query(
+        self, sql: str, params: tuple[object, ...] | dict[str, object] = ()
+    ) -> list[sqlite3.Row]:
+        return list(self._conn.execute(sql, params).fetchall())
 
     def backup_to(self, target: Path) -> None:
         """Write a consistent copy of the database, even while it is in use."""
