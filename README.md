@@ -59,6 +59,7 @@ the release on version tags (`.github/workflows/release.yml`).
 - [Design system](docs/design-system.md)
 - [Architecture](docs/architecture.md)
 - [Plan and decisions](docs/plan.md)
+- [Roadmap](docs/roadmap.md)
 - [Changelog](CHANGELOG.md)
 - [Security notes](SECURITY.md)
 

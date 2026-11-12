@@ -55,6 +55,8 @@ See `docs/architecture.md`.
 
 ## Milestones
 
+Detailed progress: `docs/roadmap.md`.
+
 1. Interview and plan: decisions, stack, design system. (This document.)
 2. Foundation: app shell, overview, theming, i18n, storage, logging, settings, CI, release pipeline, first build.
 3. File tools: file cleaner, duplicate finder, file size overview, text replacer.
