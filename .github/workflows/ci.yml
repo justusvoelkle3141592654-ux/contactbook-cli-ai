@@ -74,7 +74,7 @@ jobs:
         shell: pwsh
         run: ./build/smoke_test.ps1 -Exe dist/DesktopOrganizer/DesktopOrganizer.exe
 
-      - name: Smoke test (installer, per-user install without admin rights)
+      - name: Smoke test (system-wide install, Start menu, uninstall)
         shell: pwsh
         run: ./build/smoke_test_installer.ps1 -Setup (Get-ChildItem dist/*-setup.exe).FullName
 
