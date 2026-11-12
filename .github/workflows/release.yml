@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Check that tag, app version and changelog agree
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $version = python -c "import sys; sys.path.insert(0, 'src'); import desktop_organizer as d; print(d.__version__)"
+          if ($tag -ne $version) { throw "Tag v$tag does not match __version__ $version" }
+          if (-not (Select-String -Path CHANGELOG.md -Pattern "^## \[$([regex]::Escape($version))\]" -Quiet)) {
+            throw "CHANGELOG.md has no section for $version"
+          }
+
+      - name: Tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ruff check .
+          mypy
+          python -m pytest
+          pip-audit --requirement requirements.txt --strict
+
+      - name: Ensure Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue) -and
+              -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - name: Build
+        run: python build/build.py
+
+      - name: Smoke tests
+        shell: pwsh
+        run: |
+          ./build/smoke_test.ps1 -Exe dist/DesktopOrganizer/DesktopOrganizer.exe
+          ./build/smoke_test_installer.ps1 -Setup (Get-ChildItem dist/*-setup.exe).FullName
+
+      - name: Release notes from CHANGELOG.md
+        run: python build/release_notes.py "${{ github.ref_name }}" > dist/RELEASE_NOTES.md
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" `
+            --title "Desktop Organizer ${{ github.ref_name }}" `
+            --notes-file dist/RELEASE_NOTES.md `
+            (Get-ChildItem dist/*-setup.exe).FullName `
+            (Get-ChildItem dist/*-portable.zip).FullName `
+            dist/SHA256SUMS.txt
