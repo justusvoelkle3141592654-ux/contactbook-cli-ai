@@ -1,0 +1,8 @@
+en.txt  EFF Large Wordlist for passphrases (7,776 words).
+        Electronic Frontier Foundation, https://www.eff.org/dice
+        License: Creative Commons Attribution 3.0 US (CC BY 3.0 US).
+
+de.txt  7,776 words randomly sampled (fixed seed) from the German word list
+        shipped with xkcdpass (eff_large_de_sample.wordlist), which is based on
+        a public domain dictionary (https://sourceforge.net/projects/germandict/).
+        Filtered to words of 4 to 9 letters.
