@@ -118,8 +118,9 @@ def run_pyinstaller(version_file: Path) -> Path:
 
 def prune_qt_translations(app_dir: Path) -> None:
     """Keep only Qt's German and English translations (the app supports nothing else)."""
+    # Linux wheels keep them in PySide6/Qt/translations, Windows wheels in PySide6/translations.
     for folder in app_dir.rglob("translations"):
-        if folder.parent.name != "Qt":
+        if folder.parent.name not in ("Qt", "PySide6"):
             continue
         for file in folder.glob("*.qm"):
             if not re.search(r"_(de|en)\.qm$", file.name):

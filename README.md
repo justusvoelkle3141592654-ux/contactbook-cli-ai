@@ -32,7 +32,7 @@ The executables are not code-signed yet, so Windows SmartScreen asks for confirm
 ## System requirements
 
 - Windows 10 22H2 or Windows 11, 64-bit
-- About 100 MB of disk space (to be confirmed with the first Windows build)
+- About 100 MB of disk space (download: installer 28 MB, portable ZIP 39 MB, measured for 0.1.0)
 
 ## Build from source
 

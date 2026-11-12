@@ -17,7 +17,7 @@ in the repository; each entry becomes one issue once they are enabled.
 - [x] Settings dialog: language, theme, data folder, log folder, export, delete all data
 - [x] CI on Windows: lint, types, tests, pip-audit, packaged build, smoke tests
 - [x] Release workflow on version tags with checksums
-- [ ] First successful Windows build on GitHub Actions confirmed
+- [x] First successful Windows build on GitHub Actions confirmed (CI run 2: build, executable and installer smoke tests passed)
 - [ ] Owner sign-off on the design (overview, settings, file cleaner mockup)
 
 ## Milestone 3: File tools

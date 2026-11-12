@@ -39,7 +39,7 @@ Two options were evaluated.
 - Qt widgets render lists, tables and forms densely and fast, which matches the product better than a web view.
 - All tool logic (hashing, copying, SQLite, `psutil`) is straightforward Python and testable without a window.
 - Reliable packaging with PyInstaller; no runtime for the user to install.
-- Cost: larger download (roughly 40 to 60 MB installed) and a cold start of about one to two seconds.
+- Cost: larger download than Tauri (0.1.0: installer 27.7 MB, portable ZIP 39.2 MB) and a cold start of a few seconds.
 
 **Tauri 2 (Rust) + web front end**
 
