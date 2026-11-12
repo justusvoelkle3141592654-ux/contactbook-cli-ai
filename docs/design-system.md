@@ -27,6 +27,9 @@ messages, validation, progress outcome), never as decoration.
 | `accent_subtle` | `#E6EEFA` | `#24344B` | Background of icon tiles |
 | `nav_hover` | `#EAEAEA` | `#2D2D2D` | Hovered sidebar entry |
 | `nav_selected` | `#E4E4E4` | `#333333` | Selected sidebar entry, badges, meter track |
+| `success_subtle` | `#DFF6DD` | `#2A3B26` | Success info bar, added lines in previews |
+| `warning_subtle` | `#FFF4CE` | `#433519` | Warning info bar |
+| `error_subtle` | `#FDE7E9` | `#442726` | Error info bar, removed lines in previews |
 | `surface` | `#FFFFFF` | `#262626` | Lists, inputs, content areas |
 | `surface_alt` | `#EDEDED` | `#303030` | Hover, secondary buttons, table header |
 | `surface_pressed` | `#E3E3E3` | `#383838` | Pressed state of neutral controls |
@@ -98,6 +101,14 @@ Sizes are logical pixels; Windows display scaling applies on top.
 **Search field with hint.** Leading search icon, trailing key hint ("Ctrl+K") that disappears while typing.
 
 **Meter.** Caption label, 56 x 4 px track in `nav_selected` with an `accent` fill, value. Used in the status line.
+
+**Toggle switch.** 40 x 20 px track; off: outline in `text_secondary`; on: `accent` fill with `on_accent` knob; "On"/"Off" label to the left. Used for on/off settings that apply immediately.
+
+**Stat tile.** Card-styled button in the overview's today strip: caption on top, value below (elided, full text in the tooltip). Opens the related tool.
+
+**Info bar.** Inline message below the tool header: `accent_subtle`, `success_subtle`, `warning_subtle` or `error_subtle` background with the matching icon, optional action button and a close button.
+
+**Charts.** Area chart in `accent` with a 40 % transparent fill, secondary series in `success`, grid lines in `divider`. Core bars and share bars use `nav_selected` tracks with `accent` fill.
 
 **Badge.** 22 px pill, `nav_selected` background, Caption text in `text_secondary`. Neutral information only.
 

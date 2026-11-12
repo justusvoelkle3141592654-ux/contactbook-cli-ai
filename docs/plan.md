@@ -9,7 +9,8 @@ decision and is recorded here.
 |---|---|
 | Name | Desktop Organizer |
 | Platform | Windows 10 (22H2) and Windows 11, 64-bit only |
-| Delivery | Per-user installer (`Setup.exe`, no administrator rights, Start menu entry, uninstaller) and a portable ZIP |
+| Delivery | System-wide installer into Program Files (one UAC prompt during setup, Start menu, desktop shortcut, uninstaller; changed on owner request for 1.0) and a portable ZIP |
+| Tool windows | Every tool runs as its own process and top-level window (own taskbar button), with its own settings in the tool and on the main settings page (owner request for 1.0) |
 | Tray and autostart | Available, both off by default, switchable in settings |
 | Audience | Personal use first, built so it can be shared later without rework |
 | Scope of 1.0 | All 12 tools |
@@ -27,7 +28,7 @@ decision and is recorded here.
 | Branching | Work on the session branch, one pull request per milestone, owner merges |
 | Code signing | Unsigned for now; SHA-256 checksums published with every release |
 | Releases | Built by GitHub Actions on version tags |
-| Update check | Against GitHub Releases, off by default, notifies only, never installs by itself |
+| Update check | Not included in 1.0: the repository is private, so an unauthenticated check against GitHub Releases cannot work |
 
 ## Stack
 

@@ -1,48 +1,56 @@
 # Security
 
-This document lists what Desktop Organizer reads, writes and never does. It covers the
-current version (0.1.0, foundation). It will be extended with each tool.
+What Desktop Organizer reads, writes and never does (version 1.0.0).
+
+## Installation and rights
+
+- The installer copies the program to `C:\Program Files\Desktop Organizer`. Windows asks once for permission (UAC) because Program Files is protected. The installed program always runs with normal user rights; the installer starts it without elevation.
+- The portable ZIP needs no installation and no rights.
+- Uninstalling removes the program, the Start menu entry, the desktop shortcut and the autostart entry. Your data in `%APPDATA%\DesktopOrganizer` is kept; remove it with Settings > Delete all data.
 
 ## What the app reads
 
-- Its own data folder: `%APPDATA%\DesktopOrganizer`, or `data\` next to the executable in the portable build.
-- CPU load, memory usage and battery state for the status line (through the `psutil` library).
-- The Windows light/dark setting and display language.
+- Folders you choose in the file tools (file cleaner, duplicate finder, folder sizes, text replacer, backup). Windows, Program Files, ProgramData and other users' profiles are refused; symbolic links are never followed.
+- CPU, memory, disk, network, battery and process information (system monitor and status line, via `psutil`).
+- The clipboard, only when you switch on clipboard recording.
+- The name of the program in front when something is copied, only to skip excluded programs.
 
 ## What the app writes
 
-- `settings.json`, `organizer.db` and `logs\desktop-organizer.log` in its data folder.
-- A tinted icon file in the temporary folder (`%TEMP%\DesktopOrganizer-ui`), used by the style sheet.
-- A ZIP file at a location you choose, only when you use "Export data".
+- Its data folder: `%APPDATA%\DesktopOrganizer` (portable: `data\` next to the program) with `settings.json`, `organizer.db` (notes, tasks, reminders, time entries, clipboard history), logs, the file cleaner's undo journal, text replacer backups and backup logs.
+- Files in folders you chose, only after a preview and your confirmation: moved files (file cleaner), files moved to the Recycle Bin or another folder (duplicate finder), changed text files (text replacer), copies at the backup destination.
+- `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\DesktopOrganizer`, only when you turn on "Start with Windows", removed when you turn it off.
+- Tinted icon files in `%TEMP%\DesktopOrganizer-ui` used by the style sheet.
+
+## Deleting
+
+- Nothing is deleted permanently by the tools. Duplicates and files removed by backup mirror mode go to the Windows Recycle Bin. On drives without a Recycle Bin (some network shares) the deletion fails and is reported.
+- Settings > Delete all data removes the whole data folder after a confirmation.
+
+## Clipboard history
+
+- Off by default. When on, copied text is stored encrypted with Windows DPAPI, bound to your Windows account.
+- Content marked by password managers (`ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory = 0`) and content copied from excluded programs (KeePass, 1Password, Bitwarden and others, configurable) is not stored.
+- Only text is stored; images and files are not.
+
+## Passwords
+
+Generated with Python's `secrets` module (the operating system's cryptographic random source). Generated passwords are never written to disk or logs. Copied passwords are removed from the clipboard after 30 seconds by default.
 
 ## What the app never does
 
-- No network access. The app makes no connections to the internet. (A future update check against GitHub Releases is planned; it will be off by default.)
-- No telemetry, no account, no analytics.
-- No administrator rights. The installer installs per user to `%LOCALAPPDATA%\Programs\Desktop Organizer`.
-- No changes to system settings. Autostart is not implemented yet and will be off by default.
-- No files outside its data folder are read or changed. Tools that work on files (from milestone 3 on) only touch folders you choose and refuse Windows, Program Files, ProgramData and other users' profiles.
-
-## Logs
-
-The log file records start, exit, errors and the paths of exports. It does not contain the content of notes, tasks, clipboard entries or passwords.
-
-## Deleting data
-
-Settings > Delete all data removes the whole data folder after a confirmation and closes the app. Uninstalling the app keeps your data, so that a reinstall does not lose it; use "Delete all data" first if you want everything removed.
+- No network access, no telemetry, no account, no update check.
+- No administrator rights at run time; no changes to system settings beyond the optional autostart entry.
+- Logs contain no content of notes, tasks, clipboard entries or passwords.
 
 ## Unsigned executables
 
-The executables are not code-signed yet. Windows SmartScreen will show "Windows protected your PC" on first start; choose "More info" and "Run anyway". Some antivirus products flag new, unsigned PyInstaller builds by mistake. Every release publishes SHA-256 checksums (`SHA256SUMS.txt`) so you can verify that a download is unchanged:
+The executables are not code-signed. Windows SmartScreen shows "Windows protected your PC" on first start: choose "More info", then "Run anyway". Some antivirus products flag new, unsigned PyInstaller programs by mistake. Verify downloads with `SHA256SUMS.txt`:
 
 ```powershell
-Get-FileHash .\DesktopOrganizer-0.1.0-setup.exe -Algorithm SHA256
+Get-FileHash .\DesktopOrganizer-1.0.0-setup.exe -Algorithm SHA256
 ```
 
 ## Dependencies
 
-Runtime dependencies are PySide6 (Qt) and psutil, with pinned versions. CI checks them against known vulnerabilities with `pip-audit` on every push.
-
-## Reporting a problem
-
-Open an issue in the repository. Do not include personal data or files.
+PySide6 (Qt), psutil and Send2Trash, pinned. CI checks them with `pip-audit` on every push.

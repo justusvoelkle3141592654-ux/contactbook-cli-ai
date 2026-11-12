@@ -92,6 +92,8 @@ class ClipboardWindow(ToolWindow):
         self.search.textChanged.connect(lambda _t: self.refresh(force=True))
         self.list = QListWidget()
         self.list.setWordWrap(False)
+        self.list.setTextElideMode(Qt.TextElideMode.ElideRight)
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list.currentItemChanged.connect(lambda *_: self._show_selected())
         self.list.itemActivated.connect(lambda _i: self.copy_selected())
         self.list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)

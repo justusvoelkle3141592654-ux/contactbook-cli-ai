@@ -33,7 +33,7 @@ BUILD = ROOT / "build"
 DIST = ROOT / "dist"
 WORK = ROOT / "build" / "_work"
 APP_EXE = "DesktopOrganizer"
-PUBLISHER = "Desktop Organizer contributors"
+PUBLISHER = "Desktop Organizer"
 
 
 def read_version() -> str:
@@ -73,9 +73,30 @@ VSVersionInfo(
     return target
 
 
+def package_arguments() -> list[str]:
+    """Data files and modules PyInstaller cannot discover by itself.
+
+    Tools are found at run time with pkgutil, and each tool keeps its language file
+    next to its code, so both are listed explicitly here.
+    """
+    sep = ";" if os.name == "nt" else ":"
+    package = ROOT / "src" / "desktop_organizer"
+    args = ["--add-data", f"{package / 'resources'}{sep}desktop_organizer/resources"]
+    for i18n in sorted((package / "tools").glob("*/i18n.json")):
+        args += ["--add-data", f"{i18n}{sep}desktop_organizer/tools/{i18n.parent.name}"]
+    for module in sorted(package.rglob("*.py")):
+        relative = module.relative_to(package.parent).with_suffix("")
+        name = ".".join(relative.parts)
+        if name.endswith(".__init__"):
+            name = name[: -len(".__init__")]
+        if name.endswith("__main__"):
+            continue
+        args += ["--hidden-import", name]
+    return args
+
+
 def run_pyinstaller(version_file: Path) -> Path:
     resources = ROOT / "src" / "desktop_organizer" / "resources"
-    sep = ";" if os.name == "nt" else ":"
     args = [
         sys.executable,
         "-m",
@@ -92,10 +113,7 @@ def run_pyinstaller(version_file: Path) -> Path:
         str(version_file),
         "--paths",
         str(ROOT / "src"),
-        "--add-data",
-        f"{resources}{sep}desktop_organizer/resources",
-        "--collect-submodules",
-        "desktop_organizer.tools",
+        *package_arguments(),
         "--distpath",
         str(DIST),
         "--workpath",

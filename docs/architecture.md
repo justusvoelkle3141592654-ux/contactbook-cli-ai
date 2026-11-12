@@ -15,7 +15,13 @@ src/desktop_organizer/
 │  ├─ tool_window.py    base class for every tool window
 │  ├─ dialogs.py        shared confirmation and message dialogs
 │  ├─ theming.py        applies tokens to Qt, follows Windows light/dark, tinted icons
-│  └─ single_instance.py
+│  ├─ single_instance.py
+│  ├─ launcher.py       start a tool as its own process
+│  ├─ services.py       tray, reminders, clipboard recording, shortcuts, autostart
+│  ├─ hotkeys.py        RegisterHotKey wrapper
+│  ├─ settings_sync.py  reload settings changed by another process
+│  ├─ components.py     info bar, progress panel, folder pickers, tables, settings form
+│  └─ worker.py         background threads with progress and cancel
 ├─ core/                logic without UI, unit-tested
 │  ├─ paths.py          data folder resolution (installed, portable, override)
 │  ├─ settings.py       versioned JSON settings
@@ -27,10 +33,14 @@ src/desktop_organizer/
 │  ├─ system_info.py    CPU, memory, battery readings
 │  ├─ data_management.py export and delete all data
 │  ├─ logging_setup.py  rotating log file
+│  ├─ tool_settings.py  declarative per-tool settings
+│  ├─ jobs.py           cancellation and progress for long work
+│  ├─ dpapi.py          Windows DPAPI encryption (clipboard history)
+│  ├─ autostart.py      HKCU Run key
 │  └─ errors.py         unhandled exception hooks
 ├─ tools/
 │  ├─ registry.py       ToolSpec, planned tools, discovery
-│  └─ <tool>/           one package per tool (added from milestone 3 on)
+│  └─ <tool>/           __init__.py (SPEC, settings), logic.py (no Qt), window.py, i18n.json
 └─ resources/
    ├─ i18n/de.json, en.json
    ├─ icons/            Lucide SVGs (ISC)
@@ -40,6 +50,12 @@ src/desktop_organizer/
 The repository layout differs from the brief in one point: the package lives in
 `src/desktop_organizer/` (the standard Python "src layout") instead of `src/app`,
 `src/core`, ... directly. This keeps imports unambiguous and makes packaging reliable.
+
+## Processes
+
+- `DesktopOrganizer.exe` starts the main window. It also runs the background services (`app/services.py`): notification area icon, reminder notifications, clipboard recording, global shortcuts, autostart.
+- `DesktopOrganizer.exe --tool <id>` starts one tool in its own process and window. The main window launches tools this way (`app/launcher.py`). A second start of the same tool brings the running window to the front (`app/single_instance.py`, one local socket per tool).
+- All processes share `settings.json` (watched with `QFileSystemWatcher`, `app/settings_sync.py`) and `organizer.db` (SQLite in WAL mode with a busy timeout, `core/storage.connect`).
 
 ## Start-up
 
